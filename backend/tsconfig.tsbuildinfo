@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/models/store.ts","./src/routes/ai.ts","./src/routes/dashboard.ts","./src/routes/goals.ts","./src/routes/transactions.ts","./src/routes/vaults.ts","./src/services/ai/risk-profiles.ts","./src/services/ai/wealth-coach.ts","./src/services/yo-sdk/client.ts","./src/services/yo-sdk/mock-data.ts"],"version":"5.9.3"}

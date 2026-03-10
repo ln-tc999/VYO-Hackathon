@@ -1,0 +1,14 @@
+{
+    "name": "wealthos",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "pnpm -r --parallel run dev",
+        "dev:backend": "pnpm --filter @wealthos/backend dev",
+        "dev:frontend": "pnpm --filter @wealthos/frontend dev",
+        "build": "pnpm -r run build"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.0"
+    }
+}

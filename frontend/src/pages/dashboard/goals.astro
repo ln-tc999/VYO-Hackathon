@@ -1,0 +1,327 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Goals" activePage="goals">
+    <div class="page-header">
+        <h1 class="page-title">🎯 Your Goals</h1>
+        <p class="page-subtitle">
+            Set your goals once. WealthOS handles the rest.
+        </p>
+    </div>
+
+    <!-- Natural Language Goal Input -->
+    <div class="glass-card-static" style="margin-bottom: var(--space-8);">
+        <div
+            class="input-label"
+            style="margin-bottom: var(--space-3); font-size: var(--font-lg); font-weight: 600;"
+        >
+            ✨ Create a New Goal
+        </div>
+        <div style="display: flex; gap: var(--space-3);">
+            <input
+                type="text"
+                class="input"
+                id="goal-input"
+                placeholder='Try: "Save $5,000 for a vacation by December" or "Emergency fund of $10,000"'
+                style="flex: 1;"
+            />
+            <button
+                class="btn btn-primary btn-lg"
+                id="create-goal-btn"
+                onclick="createGoal()"
+            >
+                Create Goal
+            </button>
+        </div>
+        <p
+            style="margin-top: var(--space-2); font-size: var(--font-xs); color: var(--text-muted);"
+        >
+            Just describe your goal in plain English — we'll figure out the
+            amount, deadline, and best vault strategy for you.
+        </p>
+    </div>
+
+    <!-- Goals Grid -->
+    <div class="goals-grid" id="goals-grid">
+        <div class="glass-card empty-state loading">
+            <div class="empty-state-text">Loading goals...</div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="deposit-modal">
+        <div class="modal">
+            <h3 class="modal-title">💰 Make a Deposit</h3>
+            <p
+                style="color: var(--text-secondary); margin-bottom: var(--space-4);"
+                id="deposit-goal-name"
+            >
+            </p>
+
+            <div class="input-group">
+                <label class="input-label">Amount (USD)</label>
+                <input
+                    type="number"
+                    class="input"
+                    id="deposit-amount"
+                    placeholder="500"
+                    min="1"
+                />
+            </div>
+
+            <div
+                id="deposit-allocations"
+                style="margin-bottom: var(--space-6);"
+            >
+            </div>
+
+            <div
+                style="display: flex; gap: var(--space-3); justify-content: flex-end;"
+            >
+                <button class="btn btn-ghost" onclick="closeDepositModal()"
+                    >Cancel</button
+                >
+                <button
+                    class="btn btn-success"
+                    id="confirm-deposit-btn"
+                    onclick="confirmDeposit()"
+                >
+                    Deposit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = "/api";
+        let currentGoalId = null;
+
+        function formatCurrency(n) {
+            return new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+            }).format(n);
+        }
+
+        const allocationColors = [
+            "#3b82f6",
+            "#8b5cf6",
+            "#06b6d4",
+            "#10b981",
+            "#f59e0b",
+            "#ef4444",
+        ];
+
+        async function loadGoals() {
+            try {
+                const res = await fetch(`${API}/goals`);
+                const json = await res.json();
+                if (!json.success) return;
+
+                const goals = json.data;
+                const grid = document.getElementById("goals-grid");
+
+                if (goals.length === 0) {
+                    grid.innerHTML = `
+            <div class="glass-card empty-state">
+              <div class="empty-state-icon">🎯</div>
+              <div class="empty-state-text">No goals yet — create one above!</div>
+            </div>
+          `;
+                    return;
+                }
+
+                grid.innerHTML = goals
+                    .map((g) => {
+                        const progress = Math.min(
+                            100,
+                            Math.round(
+                                (g.currentAmount / g.targetAmount) * 100,
+                            ),
+                        );
+                        const milestones = [25, 50, 75, 100];
+                        const reachedMilestones = milestones.filter(
+                            (m) => progress >= m,
+                        );
+
+                        return `
+            <div class="glass-card goal-card">
+              <div class="goal-card-header">
+                <div class="goal-name">${g.name}</div>
+                <span class="goal-badge ${g.priority}">${g.priority}</span>
+              </div>
+
+              <div class="goal-progress-section">
+                <div class="goal-amounts">
+                  <span class="goal-current">${formatCurrency(g.currentAmount)}</span>
+                  <span class="goal-target">of ${formatCurrency(g.targetAmount)}</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${progress}%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="goal-percent">${progress}% complete</span>
+                  <div style="display: flex; gap: 4px;">
+                    ${milestones
+                        .map(
+                            (m) => `
+                      <div style="width: 20px; height: 20px; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; background: ${progress >= m ? "var(--accent-green-soft)" : "var(--bg-glass)"}; color: ${progress >= m ? "var(--accent-green)" : "var(--text-muted)"}; font-weight: 700;">
+                        ${progress >= m ? "✓" : m}
+                      </div>
+                    `,
+                        )
+                        .join("")}
+                  </div>
+                </div>
+              </div>
+
+              <div class="goal-allocations">
+                <div style="font-size: var(--font-xs); color: var(--text-muted); font-weight: 600; margin-bottom: var(--space-1);">VAULT ALLOCATIONS</div>
+                ${g.vaultAllocations
+                    .map(
+                        (a, i) => `
+                  <div class="allocation-row">
+                    <span class="allocation-name">
+                      <span class="allocation-dot" style="background: ${allocationColors[i % allocationColors.length]};"></span>
+                      ${a.vaultName} (${a.percentage}%)
+                    </span>
+                    <span class="allocation-value">${formatCurrency(a.currentBalance)}</span>
+                  </div>
+                `,
+                    )
+                    .join("")}
+              </div>
+
+              <div class="goal-deadline">
+                📅 Deadline: ${new Date(g.deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                · Risk: ${g.riskProfile}
+                ${g.autoDeposit?.enabled ? `· Auto-deposit: ${formatCurrency(g.autoDeposit.amount)}/${g.autoDeposit.frequency}` : ""}
+              </div>
+
+              <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                <button class="btn btn-primary" style="flex:1;" onclick="openDepositModal('${g.id}', '${g.name}')">
+                  💰 Deposit
+                </button>
+                <button class="btn btn-ghost" onclick="deleteGoal('${g.id}')">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          `;
+                    })
+                    .join("");
+            } catch (err) {
+                console.error("Failed to load goals:", err);
+            }
+        }
+
+        async function createGoal() {
+            const input = document.getElementById("goal-input") as HTMLInputElement | null;
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) {
+                input.focus();
+                return;
+            }
+
+            const btn = document.getElementById("create-goal-btn") as HTMLButtonElement | null;
+            if (!btn) return;
+            btn.textContent = "Creating...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API}/goals`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ input: text }),
+                });
+                const json = await res.json();
+                if (json.success) {
+                    input.value = "";
+                    loadGoals();
+                }
+            } catch (err) {
+                console.error("Failed to create goal:", err);
+            } finally {
+                btn.textContent = "Create Goal";
+                btn.disabled = false;
+            }
+        }
+
+        // Enter key to submit
+        document
+            .getElementById("goal-input")
+            ?.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") createGoal();
+            });
+
+        function openDepositModal(goalId, goalName) {
+            currentGoalId = goalId;
+            document.getElementById("deposit-goal-name").textContent =
+                `Depositing to: ${goalName}`;
+            document.getElementById("deposit-modal").classList.add("open");
+            document.getElementById("deposit-amount").focus();
+        }
+
+        function closeDepositModal() {
+            document.getElementById("deposit-modal").classList.remove("open");
+            currentGoalId = null;
+        }
+
+        async function confirmDeposit() {
+            const amountInput = document.getElementById("deposit-amount") as HTMLInputElement | null;
+            if (!amountInput) return;
+            const amount = parseFloat(amountInput.value);
+            if (!amount || amount <= 0 || !currentGoalId) return;
+
+            const btn = document.getElementById("confirm-deposit-btn") as HTMLButtonElement | null;
+            if (!btn) return;
+            btn.textContent = "Processing...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API}/transactions/deposit`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ goalId: currentGoalId, amount }),
+                });
+                const json = await res.json();
+                if (json.success) {
+                    closeDepositModal();
+                    loadGoals();
+
+                    if (json.data.goalProgress.milestone) {
+                        showMilestone(json.data.goalProgress.milestone);
+                    }
+                }
+            } catch (err) {
+                console.error("Deposit failed:", err);
+            } finally {
+                btn.textContent = "Deposit";
+                btn.disabled = false;
+            }
+        }
+
+        function showMilestone(percent) {
+            const toast = document.createElement("div");
+            toast.style.cssText =
+                "position:fixed;top:20px;right:20px;z-index:9999;background:var(--gradient-green);color:white;padding:16px 24px;border-radius:12px;font-weight:700;font-size:1.1rem;animation:celebrate 0.5s ease-out;box-shadow:0 8px 32px rgba(16,185,129,0.4);";
+            toast.textContent = `🎉 ${percent}% Milestone Reached!`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        async function deleteGoal(id) {
+            if (!confirm("Delete this goal? This cannot be undone.")) return;
+            try {
+                await fetch(`${API}/goals/${id}`, { method: "DELETE" });
+                loadGoals();
+            } catch (err) {
+                console.error("Failed to delete:", err);
+            }
+        }
+
+        loadGoals();
+    </script>
+</MainLayout>

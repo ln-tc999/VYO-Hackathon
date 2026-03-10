@@ -1,0 +1,27 @@
+{
+    "name": "@wealthos/backend",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "build": "tsc -b",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.0",
+        "express": "^4.21.0",
+        "uuid": "^11.0.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.17",
+        "@types/express": "^5.0.0",
+        "@types/node": "^25.4.0",
+        "@types/uuid": "^10.0.0",
+        "@yo-protocol/core": "^1.0.9",
+        "tsx": "^4.19.0",
+        "typescript": "^5.7.0",
+        "viem": "^2.47.1"
+    }
+}

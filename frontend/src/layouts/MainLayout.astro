@@ -1,0 +1,118 @@
+---
+interface Props {
+  title: string;
+  activePage?: string;
+}
+
+const { title, activePage = "dashboard" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="WealthOS — Your intelligent personal financial operating system. Unify savings, DeFi yield, and AI automation in one dashboard."
+    />
+    <title>{title} | WealthOS</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🏦</text></svg>"
+    />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">W</div>
+          <span class="sidebar-logo-text">WealthOS</span>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a
+            href="/dashboard"
+            class={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
+          >
+            <span class="nav-item-icon">📊</span>
+            Dashboard
+          </a>
+          <a
+            href="/dashboard/goals"
+            class={`nav-item ${activePage === "goals" ? "active" : ""}`}
+          >
+            <span class="nav-item-icon">🎯</span>
+            Goals
+          </a>
+          <a
+            href="/dashboard/vaults"
+            class={`nav-item ${activePage === "vaults" ? "active" : ""}`}
+          >
+            <span class="nav-item-icon">🏛️</span>
+            Vaults
+          </a>
+          <a
+            href="/dashboard/ai"
+            class={`nav-item ${activePage === "ai" ? "active" : ""}`}
+          >
+            <span class="nav-item-icon">🤖</span>
+            WealthCoach
+          </a>
+          <a
+            href="/dashboard/settings"
+            class={`nav-item ${activePage === "settings" ? "active" : ""}`}
+          >
+            <span class="nav-item-icon">⚙️</span>
+            Settings
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="nav-item" id="wallet-btn" style="cursor:pointer;">
+            <span class="nav-item-icon">👛</span>
+            <span id="wallet-status">Connect Wallet</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <slot />
+      </main>
+    </div>
+
+    <!-- Mobile menu toggle -->
+    <button
+      id="mobile-menu-btn"
+      style="display:none; position:fixed; top:16px; left:16px; z-index:200; background:var(--bg-card); border:1px solid var(--border-glass); border-radius:var(--radius-md); padding:8px 12px; color:var(--text-primary); font-size:1.25rem; cursor:pointer;"
+    >
+      ☰
+    </button>
+
+    <script>
+      // Mobile menu toggle
+      const menuBtn = document.getElementById("mobile-menu-btn");
+      const sidebar = document.getElementById("sidebar");
+
+      if (window.innerWidth <= 768 && menuBtn) {
+        menuBtn.style.display = "block";
+        menuBtn.addEventListener("click", () => {
+          sidebar?.classList.toggle("open");
+        });
+      }
+
+      window.addEventListener("resize", () => {
+        if (menuBtn) {
+          menuBtn.style.display = window.innerWidth <= 768 ? "block" : "none";
+        }
+        if (window.innerWidth > 768) {
+          sidebar?.classList.remove("open");
+        }
+      });
+    </script>
+  </body>
+</html>

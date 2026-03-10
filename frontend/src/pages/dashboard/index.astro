@@ -1,0 +1,248 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Dashboard" activePage="dashboard">
+    <!-- Hero: Total Net Worth -->
+    <div class="hero-stat" id="hero-stat">
+        <div class="hero-label">Total Net Worth</div>
+        <div class="hero-value" id="net-worth">$0.00</div>
+        <div class="stat-change" id="yield-today">
+            <span>↑</span>
+            <span id="yield-today-val">+$0.00 today</span>
+        </div>
+        <div class="hero-breakdown">
+            <div class="hero-breakdown-item">
+                <div class="hero-breakdown-label">DeFi (YO Vaults)</div>
+                <div class="hero-breakdown-value green" id="defi-balance">
+                    $0
+                </div>
+            </div>
+            <div class="hero-breakdown-item">
+                <div class="hero-breakdown-label">Traditional Bank</div>
+                <div class="hero-breakdown-value blue" id="tradfi-balance">
+                    $0
+                </div>
+            </div>
+            <div class="hero-breakdown-item">
+                <div class="hero-breakdown-label">Yield Earned</div>
+                <div class="hero-breakdown-value purple" id="total-yield">
+                    $0
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yield Stats -->
+    <div class="stats-grid">
+        <div class="glass-card stat-card">
+            <div class="stat-label">Yield Today</div>
+            <div class="stat-value green" id="stat-yield-today">$0.00</div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-label">Yield This Week</div>
+            <div class="stat-value green" id="stat-yield-week">$0.00</div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-label">Yield This Month</div>
+            <div class="stat-value green" id="stat-yield-month">$0.00</div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-label">Active Vaults</div>
+            <div class="stat-value blue" id="stat-vaults">0</div>
+        </div>
+    </div>
+
+    <!-- Goals Progress -->
+    <div class="section-header">
+        <h2 class="section-title">🎯 Goal Progress</h2>
+        <a href="/dashboard/goals" class="btn btn-ghost">View All</a>
+    </div>
+
+    <div class="goals-grid" id="goals-grid">
+        <div class="glass-card empty-state loading">
+            <div class="empty-state-text">Loading goals...</div>
+        </div>
+    </div>
+
+    <!-- Recent AI Decisions -->
+    <div class="section-header" style="margin-top: var(--space-8);">
+        <h2 class="section-title">🤖 Recent WealthCoach Activity</h2>
+        <a href="/dashboard/ai" class="btn btn-ghost">View All</a>
+    </div>
+
+    <div class="decisions-list" id="decisions-list">
+        <div class="glass-card empty-state loading">
+            <div class="empty-state-text">Loading decisions...</div>
+        </div>
+    </div>
+
+    <script>
+        const API = "/api";
+
+        function formatCurrency(n) {
+            return new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+            }).format(n);
+        }
+
+        function formatCompact(n) {
+            if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+            if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+            if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+            return formatCurrency(n);
+        }
+
+        function getProgressColor(percent) {
+            if (percent >= 75) return "var(--accent-green)";
+            if (percent >= 50) return "var(--accent-blue)";
+            if (percent >= 25) return "var(--accent-amber)";
+            return "var(--accent-purple)";
+        }
+
+        const allocationColors = [
+            "#3b82f6",
+            "#8b5cf6",
+            "#06b6d4",
+            "#10b981",
+            "#f59e0b",
+            "#ef4444",
+        ];
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch(`${API}/dashboard`);
+                const json = await res.json();
+                if (!json.success) return;
+                const d = json.data;
+
+                // Hero
+                document.getElementById("net-worth").textContent =
+                    formatCurrency(d.totalNetWorth);
+                document.getElementById("yield-today-val").textContent =
+                    `+${formatCurrency(d.yieldToday)} today`;
+                document.getElementById("defi-balance").textContent =
+                    formatCurrency(d.defiBalance);
+                document.getElementById("tradfi-balance").textContent =
+                    formatCurrency(d.tradFiBalance);
+                document.getElementById("total-yield").textContent =
+                    formatCurrency(d.totalYieldEarned);
+
+                // Stats
+                document.getElementById("stat-yield-today").textContent =
+                    formatCurrency(d.yieldToday);
+                document.getElementById("stat-yield-week").textContent =
+                    formatCurrency(d.yieldWeek);
+                document.getElementById("stat-yield-month").textContent =
+                    formatCurrency(d.yieldMonth);
+                document.getElementById("stat-vaults").textContent =
+                    d.activeVaults;
+
+                // Goals
+                const goalsGrid = document.getElementById("goals-grid");
+                if (d.goalSummaries.length === 0) {
+                    goalsGrid.innerHTML = `
+            <div class="glass-card empty-state">
+              <div class="empty-state-icon">🎯</div>
+              <div class="empty-state-text">No goals yet</div>
+              <a href="/dashboard/goals" class="btn btn-primary">Create Your First Goal</a>
+            </div>
+          `;
+                } else {
+                    goalsGrid.innerHTML = d.goalSummaries
+                        .map(
+                            (g) => `
+            <div class="glass-card goal-card">
+              <div class="goal-card-header">
+                <div class="goal-name">${g.name}</div>
+                ${g.progressPercent >= 75 ? '<span class="milestone-badge">🎉 Almost there!</span>' : ""}
+                ${g.progressPercent >= 100 ? '<span class="milestone-badge">🏆 Complete!</span>' : ""}
+              </div>
+              <div class="goal-progress-section">
+                <div class="goal-amounts">
+                  <span class="goal-current">${formatCurrency(g.currentAmount)}</span>
+                  <span class="goal-target">of ${formatCurrency(g.targetAmount)}</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${g.progressPercent}%; background: linear-gradient(90deg, ${getProgressColor(g.progressPercent)}, ${getProgressColor(g.progressPercent)}dd);"></div>
+                </div>
+                <div class="goal-percent">${g.progressPercent}% complete</div>
+              </div>
+              <div class="goal-deadline">
+                📅 Target: ${new Date(g.deadline).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              </div>
+            </div>
+          `,
+                        )
+                        .join("");
+                }
+
+                // Decisions
+                const decList = document.getElementById("decisions-list");
+                const recent = d.recentDecisions.slice(0, 3);
+                if (recent.length === 0) {
+                    decList.innerHTML = `
+            <div class="glass-card empty-state">
+              <div class="empty-state-icon">🤖</div>
+              <div class="empty-state-text">No recent AI activity</div>
+            </div>
+          `;
+                } else {
+                    decList.innerHTML = recent
+                        .map(
+                            (dec) => `
+            <div class="glass-card decision-card ${dec.type}">
+              <div class="decision-header">
+                <span class="decision-type-badge ${dec.type}">${dec.type.replace("_", " ")}</span>
+                <span class="decision-status-badge ${dec.status}">${dec.status.replace("_", " ")}</span>
+              </div>
+              <div class="decision-action">${dec.action}</div>
+              <div class="decision-goal">Goal: ${dec.goalName}</div>
+              <div class="decision-reasoning">${dec.reasoning}</div>
+              ${
+                  dec.status === "pending_approval"
+                      ? `
+                <div class="decision-actions">
+                  <button class="btn btn-success" onclick="approveDecision('${dec.id}')">✓ Approve</button>
+                  <button class="btn btn-ghost" onclick="rejectDecision('${dec.id}')">✕ Dismiss</button>
+                </div>
+              `
+                      : ""
+              }
+            </div>
+          `,
+                        )
+                        .join("");
+                }
+            } catch (err) {
+                console.error("Failed to load dashboard:", err);
+            }
+        }
+
+        async function approveDecision(id) {
+            try {
+                await fetch(`${API}/ai/decisions/${id}/approve`, {
+                    method: "POST",
+                });
+                loadDashboard();
+            } catch (err) {
+                console.error("Failed to approve:", err);
+            }
+        }
+
+        async function rejectDecision(id) {
+            try {
+                await fetch(`${API}/ai/decisions/${id}/reject`, {
+                    method: "POST",
+                });
+                loadDashboard();
+            } catch (err) {
+                console.error("Failed to reject:", err);
+            }
+        }
+
+        // Load on ready
+        loadDashboard();
+    </script>
+</MainLayout>

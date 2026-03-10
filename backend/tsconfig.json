@@ -1,0 +1,31 @@
+{
+    "extends": "../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "declaration": false,
+        "declarationMap": false,
+        "module": "node16",
+        "moduleResolution": "node16",
+        "skipLibCheck": true,
+        "types": [
+            "node"
+        ],
+        "paths": {
+            "@wealthos/shared": [
+                "../shared/types/index.ts"
+            ],
+            "@wealthos/shared/*": [
+                "../shared/types/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "references": [
+        {
+            "path": "../shared/tsconfig.json"
+        }
+    ]
+}
