@@ -12,6 +12,7 @@ import { vaultsRouter } from './routes/vaults.js';
 import { transactionsRouter } from './routes/transactions.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { aiRouter } from './routes/ai.js';
+import { yieldRouter } from './routes/yield.js';
 import { initCronJobs } from './jobs/vioLoop.js';
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use('/api/vaults', vaultsRouter);
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/yield', yieldRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
