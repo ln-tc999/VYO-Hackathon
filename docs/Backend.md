@@ -272,22 +272,51 @@ export async function decisionEngine(state: UserState): Promise<Decision[]> {
 }
 ```
 
-### Claude API Integration (Vio Agent Chat)
+### OpenRouter API Integration (Vio Agent Chat)
+
+We use **OpenRouter** for access to multiple free/cheap AI models (NVIDIA, Meta, Mistral, etc.).
 
 ```typescript
-// services/ai/claudeClient.ts
-export async function chatWithVio Agent(
+// services/ai/openRouterClient.ts
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+// Free/Cheap Models via OpenRouter
+const MODELS = {
+  // NVIDIA free models
+  nvidiaLlama: 'nvidia/llama-3.1-nemotron-70b-instruct:free',
+  nvidiaMistral: 'nvidia/mistral-nemo-instruct-2407:free',
+  
+  // Other free options
+  metaLlama: 'meta-llama/llama-3.1-70b-instruct:free',
+  mistral: 'mistralai/mistral-7b-instruct:free',
+  googleGemini: 'google/gemini-flash-1.5:free',
+  
+  // Cheap paid options (fallback)
+  anthropicClaude: 'anthropic/claude-3.5-sonnet',
+  openaiGpt4: 'openai/gpt-4o-mini',
+};
+
+export async function chatWithVioAgent(
   message: string,
   history: Message[],
-  userContext: UserContext
+  userContext: UserContext,
+  model: string = MODELS.nvidiaLlama // Default to free NVIDIA
 ) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://vyo.finance', // Required by OpenRouter
+      'X-Title': 'Vyo Apps',
+    },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: `You are Vio Agent, the AI financial coach for Vyo Apps.
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are Vio Agent, the AI financial coach for Vyo Apps.
 You help users manage their savings goals and DeFi yield optimization.
 User context: ${JSON.stringify(userContext)}
 
@@ -296,16 +325,89 @@ Rules:
 - For goal creation, extract: name, targetAmount, deadline
 - For deposit questions, reference their current goal progress
 - Always mention risk when suggesting vault changes
-- Return JSON when parsing goals: { goalName, targetAmount, deadline, suggestedRisk }`,
-      messages: [
+- Return JSON when parsing goals: { goalName, targetAmount, deadline, suggestedRisk }`
+        },
         ...history,
         { role: 'user', content: message }
-      ]
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'AI request failed');
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// Fallback to alternative model if primary fails
+export async function chatWithVioAgentWithFallback(
+  message: string,
+  history: Message[],
+  userContext: UserContext
+) {
+  const models = [
+    MODELS.nvidiaLlama,
+    MODELS.nvidiaMistral,
+    MODELS.metaLlama,
+    MODELS.mistral,
+  ];
+
+  for (const model of models) {
+    try {
+      return await chatWithVioAgent(message, history, userContext, model);
+    } catch (err) {
+      console.warn(`Model ${model} failed, trying next...`);
+      continue;
+    }
+  }
+
+  throw new Error('All AI models failed');
+}
+```
+
+### NVIDIA API Alternative (Direct)
+
+If you prefer direct NVIDIA API without OpenRouter:
+
+```typescript
+// services/ai/nvidiaClient.ts
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+
+export async function chatWithNvidia(
+  message: string,
+  history: Message[],
+  userContext: UserContext
+) {
+  const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${NVIDIA_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'nvidia/llama-3.1-nemotron-70b-instruct',
+      messages: [
+        {
+          role: 'system',
+          content: `You are Vio Agent, the AI financial coach for Vyo Apps...`
+        },
+        ...history,
+        { role: 'user', content: message }
+      ],
+      max_tokens: 1024,
+      temperature: 0.2,
+      top_p: 0.7,
     })
   });
 
   const data = await response.json();
-  return data.content[0].text;
+  return data.choices[0].message.content;
 }
 ```
 
@@ -352,28 +454,81 @@ export function allocateVaults(
 
 ---
 
-## 🔐 Auth: Sign-In With Ethereum (SIWE)
+## 🔐 Auth: Wallet-Only (No JWT/Session)
+
+**Philosophy:** Since Vyo Apps is a blockchain-native app, we use **WalletConnect** as the sole authentication method. No JWT, no sessions, no SIWE.
+
+### How It Works
+1. User connects wallet via WalletConnect (wagmi)
+2. Wallet address is stored in **IndexedDB** on the frontend
+3. Every API call includes the wallet address in the header: `X-Wallet-Address: 0x...`
+4. Backend treats wallet address as the user ID
+
+### Frontend Session Store (IndexedDB)
 
 ```typescript
-// routes/auth.ts
-import { SiweMessage } from 'siwe';
+// frontend/src/lib/session.ts
+import { openDB } from 'idb';
 
-router.post('/nonce', (req, res) => {
-  const nonce = generateNonce();
-  req.session.nonce = nonce;
-  res.json({ nonce });
-});
+const DB_NAME = 'vyo-session';
+const STORE_NAME = 'wallet';
 
-router.post('/verify', async (req, res) => {
-  const { message, signature } = req.body;
-  const siwe = new SiweMessage(message);
-  const { data: fields } = await siwe.verify({ signature, nonce: req.session.nonce });
+export async function saveWalletSession(address: string, chainId: number) {
+  const db = await openDB(DB_NAME, 1, {
+    upgrade(db) {
+      db.createObjectStore(STORE_NAME);
+    },
+  });
+  await db.put(STORE_NAME, { address, chainId, connectedAt: Date.now() }, 'session');
+}
 
-  const user = await upsertUser(fields.address);
-  const token = jwt.sign({ userId: user.id, address: fields.address }, process.env.JWT_SECRET);
-  res.json({ token, user });
+export async function getWalletSession() {
+  const db = await openDB(DB_NAME, 1);
+  return db.get(STORE_NAME, 'session');
+}
+
+export async function clearWalletSession() {
+  const db = await openDB(DB_NAME, 1);
+  await db.delete(STORE_NAME, 'session');
+}
+```
+
+### Backend Middleware
+
+```typescript
+// middleware/auth.ts
+export function walletAuth(req: Request, res: Response, next: NextFunction) {
+  const walletAddress = req.headers['x-wallet-address'] as string;
+  
+  if (!walletAddress || !isValidAddress(walletAddress)) {
+    return res.status(401).json({ error: 'Wallet address required' });
+  }
+  
+  // Set user context from wallet address
+  req.user = { 
+    id: walletAddress.toLowerCase(),
+    walletAddress: walletAddress.toLowerCase() 
+  };
+  next();
+}
+```
+
+### API Usage
+
+```typescript
+// Frontend API call with wallet auth
+const response = await fetch('/api/goals', {
+  headers: {
+    'X-Wallet-Address': walletAddress,
+  },
 });
 ```
+
+**Benefits:**
+- No JWT expiration issues
+- No session management
+- Stateless backend
+- Truly decentralized auth
 
 ---
 
@@ -383,12 +538,26 @@ router.post('/verify', async (req, res) => {
 # .env.example
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
-JWT_SECRET=...
-ANTHROPIC_API_KEY=...        # For Vio Agent (Claude API)
+
+# AI Models (choose one)
+OPENROUTER_API_KEY=...       # Recommended - access to multiple free models
+NVIDIA_API_KEY=...           # Alternative - direct NVIDIA API
+
 YO_SDK_API_KEY=...           # From blockchain agent
 PLAID_CLIENT_ID=...          # Optional for hackathon
 PLAID_SECRET=...
+# Note: No JWT_SECRET needed - we use wallet-only auth via X-Wallet-Address header
 ```
+
+**AI Model Recommendations:**
+
+| Provider | Model | Cost | Quality | Best For |
+|----------|-------|------|---------|----------|
+| **OpenRouter** | nvidia/llama-3.1-nemotron-70b | FREE | High | Default choice |
+| **OpenRouter** | meta-llama/llama-3.1-70b | FREE | High | Fallback |
+| **OpenRouter** | mistralai/mistral-7b | FREE | Medium | Lightweight |
+| **NVIDIA** | llama-3.1-nemotron-70b | FREE | High | Direct API |
+| OpenRouter | anthropic/claude-3.5-sonnet | Paid | Highest | Premium option |
 
 ---
 
@@ -411,7 +580,7 @@ PLAID_SECRET=...
 | 3 | Goals CRUD API + vault allocation logic (allocateVaults) |
 | 4 | YO SDK service wrapper integration (consume blockchain agent's module) |
 | 5 | Vio Agent agent loop + decision engine (rule-based) |
-| 6 | Claude API chat integration (Vio Agent natural language) |
+| 6 | OpenRouter/NVIDIA API chat integration (Vio Agent natural language - free models) |
 | 7 | Dashboard aggregation endpoints (net worth, yield, breakdown) |
 | 8 | Decision approval/dismiss endpoints + notification service |
 | 9 | Mock Plaid + Redis caching + rate limiting |

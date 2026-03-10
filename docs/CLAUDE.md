@@ -298,23 +298,46 @@ async function vioAgentLoop(userId: string) {
 }
 ```
 
-### Using Claude API as the Reasoning Brain
+### Using OpenRouter API as the Reasoning Brain (Free Models)
+
+We use OpenRouter to access free NVIDIA and open-source models:
 
 ```typescript
-const response = await fetch("https://api.anthropic.com/v1/messages", {
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+    "HTTP-Referer": "https://vyo.finance",
+    "X-Title": "Vyo Apps"
+  },
   body: JSON.stringify({
-    model: "claude-sonnet-4-20250514",
+    model: "nvidia/llama-3.1-nemotron-70b-instruct:free", // FREE NVIDIA model
     max_tokens: 1000,
-    system: `You are Vio Agent, an autonomous DeFi portfolio manager.
+    messages: [
+      {
+        role: "system",
+        content: `You are Vio Agent, an autonomous DeFi portfolio manager.
 Given the user's goals, risk profile, and current market state,
 decide what actions to take. Always return JSON only:
-{ actions: [], requiresApproval: boolean, reasoning: string }`,
-    messages: [{ role: "user", content: JSON.stringify(state) }]
+{ actions: [], requiresApproval: boolean, reasoning: string }`
+      },
+      { role: "user", content: JSON.stringify(state) }
+    ]
   })
 });
+
+const data = await response.json();
+const decision = JSON.parse(data.choices[0].message.content);
 ```
+
+**Free Model Options via OpenRouter:**
+- `nvidia/llama-3.1-nemotron-70b-instruct:free` - Best quality, FREE
+- `nvidia/mistral-nemo-instruct-2407:free` - Alternative NVIDIA
+- `meta-llama/llama-3.1-70b-instruct:free` - Meta model, FREE
+- `mistralai/mistral-7b-instruct:free` - Lightweight, FREE
 
 ### Autonomy Rules
 - **NEVER move money without logging** the decision + reasoning, even for auto-executed actions.
@@ -468,7 +491,7 @@ HACKATHON (now)                POST-HACKATHON
 ───────────────                ─────────────────────────────
 Week 1-2:                      Phase 2: Smart Contract
   ✅ YO SDK integration          🔲 Deploy Vyo AppsRouter.sol
-  ✅ Agent loop (cron + Claude)  🔲 Batch deposit (gas savings)
+  ✅ Agent loop (cron + OpenRouter/NVIDIA)  🔲 Batch deposit (gas savings)
   ✅ Approval-gated rebalance    🔲 Agent permission system
 
 Week 3:                        Phase 3: ZK Privacy
