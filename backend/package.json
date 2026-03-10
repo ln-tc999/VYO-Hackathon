@@ -9,12 +9,14 @@
         "start": "node dist/index.js"
     },
     "dependencies": {
+        "@types/uuid": "^10.0.0",
+        "@yo-protocol/core": "^1.0.9",
         "cors": "^2.8.5",
         "dotenv": "^16.4.0",
         "express": "^4.21.0",
         "node-cron": "^3.0.3",
-        "viem": "^2.28.0",
-        "@yo-protocol/core": "^1.0.9"
+        "uuid": "^13.0.0",
+        "viem": "^2.28.0"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",
