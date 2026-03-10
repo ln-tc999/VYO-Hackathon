@@ -1,9 +1,9 @@
 // ============================================================
-// WEALTHCOACH: Mock vault data for development/demo
+// VIO_AGENT: Mock vault data for development/demo
 // Realistic data based on actual YO Protocol vaults
 // ============================================================
 
-import type { VaultInfo } from '@wealthos/shared';
+import type { VaultInfo } from '../../../../shared/types/index.js';
 
 export const MOCK_VAULTS: VaultInfo[] = [
     {

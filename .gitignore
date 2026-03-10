@@ -1,16 +1,48 @@
+# Dependencies
 node_modules/
 .pnpm-store/
+
+# Build outputs
 dist/
+build/
+out/
 .astro/
+
+# Environment
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS
 .DS_Store
 Thumbs.db
-coverage/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# Coverage
+coverage/
+lcov.info
+
+# Contracts (Foundry)
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/
+.gas-snapshot
+
+# Backend
+backend/dist/
+backend/build/
+
+# Frontend
+frontend/dist/
+frontend/.astro/

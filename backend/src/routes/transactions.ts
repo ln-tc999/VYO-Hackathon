@@ -3,10 +3,12 @@
 // ============================================================
 
 import { Router } from 'express';
-import { v4 as uuid } from 'uuid';
 import { getStore, getDemoUserId } from '../models/store.js';
 import { yoService } from '../services/yo-sdk/client.js';
 import type { Transaction, VaultAllocation } from '../../../shared/types/index.js';
+
+// Simple ID generator (no uuid package needed)
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export const transactionsRouter = Router();
 
@@ -55,7 +57,7 @@ transactionsRouter.post('/deposit', async (req, res) => {
             );
 
             const tx: Transaction = {
-                id: uuid(),
+                id: generateId(),
                 userId,
                 goalId,
                 type: 'deposit',
@@ -143,7 +145,7 @@ transactionsRouter.post('/redeem', async (req, res) => {
         const result = await yoService.redeem(vaultId, amount, userAddress);
 
         const tx: Transaction = {
-            id: uuid(),
+            id: generateId(),
             userId,
             goalId,
             type: 'redeem',
