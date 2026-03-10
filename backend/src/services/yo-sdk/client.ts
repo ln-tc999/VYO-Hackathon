@@ -9,7 +9,10 @@ import { MOCK_VAULTS } from './mock-data.js';
 // VIO_AGENT: Mode configuration
 const DEV_MODE = process.env.DEV_MODE || 'mock';
 const IS_LIVE_MODE = DEV_MODE === 'live';
-const YO_CHAIN_ID = parseInt(process.env.YO_CHAIN_ID || '8453');
+
+// Using Base Sepolia Testnet (chain ID: 84532)
+// Change to 8453 for Base Mainnet
+const YO_CHAIN_ID = parseInt(process.env.YO_CHAIN_ID || '84532');
 
 // Cache vault data to reduce API calls
 let vaultCache: VaultInfo[] | null = null;
@@ -24,6 +27,14 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
  * USER data: Mock in dev, real in live
  */
 export class YoSDKService {
+    private chainId: number = YO_CHAIN_ID;
+    
+    /**
+     * Get current chain ID
+     */
+    getChainId(): number {
+        return this.chainId;
+    }
     
     /**
      * Get all vaults - ALWAYS tries real YO API first
