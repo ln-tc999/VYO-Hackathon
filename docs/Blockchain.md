@@ -442,26 +442,16 @@ export const config = defaultWagmiConfig({
   },
 });
 
-// Connect wallet
+// Connect wallet - no SIWE needed, just pure WalletConnect
 export async function connectWallet() {
   const modal = createWeb3Modal({ wagmiConfig: config, projectId });
   await modal.open();
 }
 
-// Sign message for SIWE auth
-export async function signInWithEthereum(nonce: string) {
-  const { address } = getAccount(config);
-  const message = new SiweMessage({
-    domain: window.location.host,
-    address,
-    statement: 'Sign in to Vyo',
-    uri: window.location.origin,
-    version: '1',
-    chainId: 1,
-    nonce,
-  });
-  const signature = await signMessage(config, { message: message.prepareMessage() });
-  return { message: message.prepareMessage(), signature };
+// Disconnect wallet
+export async function disconnectWallet() {
+  await disconnect(config);
+  await clearWalletSession(); // from lib/session.ts
 }
 ```
 
@@ -509,7 +499,7 @@ export async function signInWithEthereum(nonce: string) {
 ## 🤝 Interfaces with Other Agents
 
 - **Backend Agent** — exports `batchDepositToGoal`, `redeem`, `getVaults`, `estimateGas`, `getUserPosition`
-- **Frontend Agent** — exports `connectWallet`, `signInWithEthereum` from `wallet.ts`
+- **Frontend Agent** — exports `connectWallet`, `disconnectWallet` from `wallet.ts` (no SIWE, just WalletConnect)
 - **SC Agent** — this file IS the SC agent; contract address shared via `process.env.ROUTER_CONTRACT_ADDRESS`
 
 ---

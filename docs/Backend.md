@@ -352,28 +352,81 @@ export function allocateVaults(
 
 ---
 
-## 🔐 Auth: Sign-In With Ethereum (SIWE)
+## 🔐 Auth: Wallet-Only (No JWT/Session)
+
+**Philosophy:** Since Vyo Apps is a blockchain-native app, we use **WalletConnect** as the sole authentication method. No JWT, no sessions, no SIWE.
+
+### How It Works
+1. User connects wallet via WalletConnect (wagmi)
+2. Wallet address is stored in **IndexedDB** on the frontend
+3. Every API call includes the wallet address in the header: `X-Wallet-Address: 0x...`
+4. Backend treats wallet address as the user ID
+
+### Frontend Session Store (IndexedDB)
 
 ```typescript
-// routes/auth.ts
-import { SiweMessage } from 'siwe';
+// frontend/src/lib/session.ts
+import { openDB } from 'idb';
 
-router.post('/nonce', (req, res) => {
-  const nonce = generateNonce();
-  req.session.nonce = nonce;
-  res.json({ nonce });
-});
+const DB_NAME = 'vyo-session';
+const STORE_NAME = 'wallet';
 
-router.post('/verify', async (req, res) => {
-  const { message, signature } = req.body;
-  const siwe = new SiweMessage(message);
-  const { data: fields } = await siwe.verify({ signature, nonce: req.session.nonce });
+export async function saveWalletSession(address: string, chainId: number) {
+  const db = await openDB(DB_NAME, 1, {
+    upgrade(db) {
+      db.createObjectStore(STORE_NAME);
+    },
+  });
+  await db.put(STORE_NAME, { address, chainId, connectedAt: Date.now() }, 'session');
+}
 
-  const user = await upsertUser(fields.address);
-  const token = jwt.sign({ userId: user.id, address: fields.address }, process.env.JWT_SECRET);
-  res.json({ token, user });
+export async function getWalletSession() {
+  const db = await openDB(DB_NAME, 1);
+  return db.get(STORE_NAME, 'session');
+}
+
+export async function clearWalletSession() {
+  const db = await openDB(DB_NAME, 1);
+  await db.delete(STORE_NAME, 'session');
+}
+```
+
+### Backend Middleware
+
+```typescript
+// middleware/auth.ts
+export function walletAuth(req: Request, res: Response, next: NextFunction) {
+  const walletAddress = req.headers['x-wallet-address'] as string;
+  
+  if (!walletAddress || !isValidAddress(walletAddress)) {
+    return res.status(401).json({ error: 'Wallet address required' });
+  }
+  
+  // Set user context from wallet address
+  req.user = { 
+    id: walletAddress.toLowerCase(),
+    walletAddress: walletAddress.toLowerCase() 
+  };
+  next();
+}
+```
+
+### API Usage
+
+```typescript
+// Frontend API call with wallet auth
+const response = await fetch('/api/goals', {
+  headers: {
+    'X-Wallet-Address': walletAddress,
+  },
 });
 ```
+
+**Benefits:**
+- No JWT expiration issues
+- No session management
+- Stateless backend
+- Truly decentralized auth
 
 ---
 
@@ -383,11 +436,11 @@ router.post('/verify', async (req, res) => {
 # .env.example
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
-JWT_SECRET=...
 ANTHROPIC_API_KEY=...        # For Vio Agent (Claude API)
 YO_SDK_API_KEY=...           # From blockchain agent
 PLAID_CLIENT_ID=...          # Optional for hackathon
 PLAID_SECRET=...
+# Note: No JWT_SECRET needed - we use wallet-only auth via X-Wallet-Address header
 ```
 
 ---

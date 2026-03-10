@@ -199,17 +199,34 @@ Step 4: Fund it
 
 ## 🔌 API Calls (lib/api.ts)
 
-All backend calls go through this single file:
+All backend calls go through this single file. **Wallet address is sent in header** — no JWT needed:
 
 ```typescript
 const BASE = import.meta.env.PUBLIC_API_URL;
 
+// Get wallet from IndexedDB session
+async function getWalletHeader() {
+  const session = await getWalletSession();
+  return { 'X-Wallet-Address': session?.address || '' };
+}
+
 // Goals
-export const getGoals = () => fetch(`${BASE}/goals`).then(r => r.json());
-export const createGoal = (data: CreateGoalInput) =>
-  fetch(`${BASE}/goals`, { method: 'POST', body: JSON.stringify(data) }).then(r => r.json());
-export const depositToGoal = (goalId: string, amount: number) =>
-  fetch(`${BASE}/goals/${goalId}/deposit`, { method: 'POST', body: JSON.stringify({ amount }) }).then(r => r.json());
+export const getGoals = async () => {
+  const headers = await getWalletHeader();
+  return fetch(`${BASE}/goals`, { headers }).then(r => r.json());
+};
+
+export const createGoal = async (data: CreateGoalInput) => {
+  const headers = await getWalletHeader();
+  return fetch(`${BASE}/goals`, { 
+    method: 'POST', 
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data) 
+  }).then(r => r.json());
+};
+
+// ... all other API calls follow same pattern
+```
 
 // Vaults
 export const getVaults = () => fetch(`${BASE}/vaults`).then(r => r.json());
@@ -244,6 +261,166 @@ export const isDepositing = atom<boolean>(false);
 // stores/aiStore.ts
 export const pendingDecisions = atom<AIDecision[]>([]);
 export const isVio AgentThinking = atom<boolean>(false);
+```
+
+---
+
+## 🔐 WalletConnect + IndexedDB Session
+
+**No JWT, no SIWE, no sessions.** Just WalletConnect + IndexedDB for persistence.
+
+### 1. Install dependencies
+
+```bash
+npm install @web3modal/wagmi wagmi viem idb
+```
+
+### 2. Wallet Config (lib/wallet.ts)
+
+```typescript
+import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi';
+import { base, arbitrum } from 'wagmi/chains';
+import { getAccount, watchAccount } from '@wagmi/core';
+import { saveWalletSession, clearWalletSession } from './session';
+
+const chains = [base, arbitrum];
+
+export const wagmiConfig = defaultWagmiConfig({
+  chains,
+  projectId: import.meta.env.PUBLIC_WALLETCONNECT_ID,
+  metadata: {
+    name: 'Vyo Apps',
+    description: 'Your intelligent financial OS',
+    url: 'https://vyo.finance',
+    icons: ['/logo.png'],
+  },
+});
+
+// Watch for wallet changes and save to IndexedDB
+export function initWalletWatcher() {
+  watchAccount(wagmiConfig, {
+    onChange(account) {
+      if (account.address) {
+        saveWalletSession(account.address, account.chainId);
+      } else {
+        clearWalletSession();
+      }
+    },
+  });
+}
+
+// Open WalletConnect modal
+export async function openWalletModal() {
+  const modal = createWeb3Modal({ 
+    wagmiConfig, 
+    projectId: import.meta.env.PUBLIC_WALLETCONNECT_ID 
+  });
+  await modal.open();
+}
+
+// Get current wallet
+export function getCurrentWallet() {
+  return getAccount(wagmiConfig);
+}
+```
+
+### 3. Session Storage (lib/session.ts)
+
+```typescript
+import { openDB } from 'idb';
+
+const DB_NAME = 'vyo-session';
+const STORE_NAME = 'wallet';
+
+interface WalletSession {
+  address: string;
+  chainId: number;
+  connectedAt: number;
+}
+
+export async function saveWalletSession(address: string, chainId: number) {
+  const db = await openDB(DB_NAME, 1, {
+    upgrade(db) {
+      db.createObjectStore(STORE_NAME);
+    },
+  });
+  await db.put(STORE_NAME, { 
+    address, 
+    chainId, 
+    connectedAt: Date.now() 
+  }, 'session');
+}
+
+export async function getWalletSession(): Promise<WalletSession | undefined> {
+  const db = await openDB(DB_NAME, 1);
+  return db.get(STORE_NAME, 'session');
+}
+
+export async function clearWalletSession() {
+  const db = await openDB(DB_NAME, 1);
+  await db.delete(STORE_NAME, 'session');
+}
+
+// Check if user is "logged in" (has wallet connected)
+export async function isAuthenticated(): Promise<boolean> {
+  const session = await getWalletSession();
+  return !!session?.address;
+}
+```
+
+### 4. Auth Guard Component
+
+```typescript
+// components/AuthGuard.tsx
+import { useEffect, useState } from 'react';
+import { isAuthenticated } from '../lib/session';
+
+export function AuthGuard({ children }: { children: any }) {
+  const [auth, setAuth] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    isAuthenticated().then(setAuth);
+  }, []);
+
+  if (auth === null) return <div>Loading...</div>;
+  if (!auth) {
+    window.location.href = '/connect';
+    return null;
+  }
+  return children;
+}
+```
+
+### 5. Connect Page (pages/connect.astro)
+
+```astro
+---
+// No server-side auth check — purely client-side
+---
+
+<div class="connect-page">
+  <h1>Connect Your Wallet</h1>
+  <p>Vyo Apps uses WalletConnect for secure, decentralized authentication.</p>
+  <button id="connect-btn" class="btn btn-primary btn-lg">
+    Connect Wallet
+  </button>
+</div>
+
+<script>
+  import { openWalletModal, initWalletWatcher } from '../lib/wallet';
+  import { isAuthenticated } from '../lib/session';
+  
+  // Redirect if already connected
+  isAuthenticated().then(auth => {
+    if (auth) window.location.href = '/dashboard';
+  });
+  
+  initWalletWatcher();
+  
+  document.getElementById('connect-btn')?.addEventListener('click', () => {
+    openWalletModal();
+  });
+</script>
 ```
 
 ---
