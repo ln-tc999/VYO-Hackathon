@@ -89,6 +89,7 @@ VYO-Hackathon/
 │   ├── src/
 │   │   ├── pages/             # Dashboard pages
 │   │   │   ├── dashboard/     # Main app routes
+│   │   │   ├── landing/       # Landing page
 │   │   │   └── index.astro   # Landing page
 │   │   ├── layouts/           # Page layouts
 │   │   └── styles/            # Global CSS
