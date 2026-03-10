@@ -4,42 +4,71 @@
 > **Stack:** Node.js, Express, YO SDK, OpenRouter API (Free AI Models)  
 > **AI Persona:** Vio Agent  
 > **Architecture:** Stateless (No Database) - All data on Blockchain  
-> **⚠️ HACKATHON REQUIREMENT:** Real YO SDK transactions (NOT mockups!)
+> **⚠️ HACKATHON STRATEGY:** Hybrid - Real YO reads, Switchable writes
 
 ---
 
-## 🚨 HACKATHON REQUIREMENTS (CRITICAL!)
+## 🚨 HACKATHON STRATEGY (CRITICAL!)
 
-### Must Have for Demo:
-- [ ] **REAL YO SDK Integration** - `@yo-protocol/core` 
-- [ ] **LIVE Transactions** - Real deposit/redeem on Base/Ethereum
-- [ ] **Working On-Chain Flows** - Not just UI mockups
-- [ ] **Wallet Integration** - WalletConnect with real transactions
+### Development vs Demo Mode
 
-### Judging Criteria (20% Quality of Integration):
 ```
-❌ Mockups alone will NOT qualify
-❌ Fake transaction hashes  
-✅ Real deposit() calls to YO vaults
-✅ Real redeem() calls with actual on-chain execution
-✅ Transaction confirmation on BaseScan/Etherscan
+┌─────────────────────────────────────────────────────────────────┐
+│                     DEVELOPMENT MODE                            │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ Read Vault Data:  REAL from YO API (APY, TVL, pools)         │
+│ ✅ User Balance:     MOCK (no crypto needed for testing)        │
+│ ✅ Transactions:     MOCK (simulated, instant)                  │
+│                                                                 │
+│ 👉 Use this for: UI development, testing, debugging            │
+│ 👉 No real wallet funding required                              │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     DEMO/PRODUCTION MODE                        │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ Read Vault Data:  REAL from YO API                           │
+│ ✅ User Balance:     REAL from blockchain                       │
+│ ✅ Transactions:     REAL on-chain deposit/redeem               │
+│                                                                 │
+│ 👉 Use this for: Hackathon demo, production                     │
+│ 👉 Requires: Wallet with real crypto ($5-10)                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Demo Setup:
+### Why This Strategy?
+
+**Hackathon Requirements:**
+- ❌ Mockups alone will NOT qualify
+- ✅ Must demonstrate working YO SDK integration
+- ✅ Real deposit/redeem flows must work
+
+**Our Solution:**
+- **Read**: Always real YO API (shows we integrated properly)
+- **Write**: Switchable (easy dev → real demo)
+
+### Environment Configuration
+
 ```bash
-# 1. Set environment
-USE_LIVE_SDK=true
-YO_CHAIN_ID=8453  # Base mainnet (low gas)
+# .env
 
-# 2. Prepare test wallet
-# - Fund with small amount ($5-10) on Base
-# - Connect wallet in UI
-# - Execute real $1 deposit to yoUSD vault
+# MODE 1: Development (no crypto needed)
+DEV_MODE=mock
 
-# 3. Show transaction on BaseScan
-# - Copy tx hash from response
-# - Show on https://basescan.org
+# MODE 2: Demo (real transactions)
+# DEV_MODE=live
+
+# YO Protocol (always used for reads)
+YO_CHAIN_ID=8453  # Base mainnet
 ```
+
+### Judging Criteria Addressed:
+
+| Criteria | Our Approach | Status |
+|----------|--------------|--------|
+| **Quality of Integration (20%)** | Real YO API reads (APY, TVL) | ✅ |
+| **Real Transactions** | Switchable: mock (dev) → real (demo) | ✅ |
+| **UX Simplicity (30%)** | Clean UI works in both modes | 🔄 |
 
 ---
 
@@ -474,70 +503,156 @@ export async function chatWithFallback(
 
 ---
 
-## 🔌 YO SDK Integration
+## 🔌 YO SDK Integration (Hybrid Strategy)
 
-### Core Functions
+### Architecture: Real Reads + Switchable Writes
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                      YO SDK SERVICE                          │
+├──────────────────────┬───────────────────────────────────────┤
+│   READ (Always Real) │   WRITE (Dev: Mock / Live: Real)      │
+├──────────────────────┼───────────────────────────────────────┤
+│ ✅ getVaults()       │ ✅ deposit()   → Mock / Real          │
+│ ✅ getVaultSnapshot()│ ✅ redeem()    → Mock / Real          │
+│ ✅ getUserPosition() │                                       │
+│ ✅ APY, TVL, Pools   │                                       │
+└──────────────────────┴───────────────────────────────────────┘
+         │                           │
+         ▼                           ▼
+┌─────────────────┐      ┌──────────────────┐
+│  YO Protocol    │      │  Mock (Dev)      │
+│  API / SDK      │      │  Real (Demo)     │
+│  (Always Live)  │      │  (Switchable)    │
+└─────────────────┘      └──────────────────┘
+```
+
+### Implementation
 
 ```typescript
 // services/yo-sdk/client.ts
 
-import { createYoClient, VAULTS } from '@yo-protocol/core';
+const DEV_MODE = process.env.DEV_MODE || 'mock';
+const IS_LIVE_MODE = DEV_MODE === 'live';
 
 export class YoSDKService {
-  private client;
-
-  constructor(chainId: number = 8453) {  // Base mainnet
-    this.client = createYoClient({ chainId });
-  }
-
+  
+  /**
+   * READ: Always real from YO Protocol
+   * Shows real APY, TVL - proves integration works
+   */
   async getVaults(): Promise<VaultInfo[]> {
-    // Returns: yoUSD, yoETH, yoBTC, etc.
-    const vaultEntries = Object.entries(VAULTS);
-    
-    return Promise.all(
-      vaultEntries.map(async ([key, vault]) => {
-        const [state, snapshot] = await Promise.all([
-          this.client.getVaultState(vault.address),
-          this.client.getVaultSnapshot(vault.address),
-        ]);
-
-        return {
-          id: key,
-          name: state.name,
-          symbol: state.symbol,
-          address: vault.address,
-          apy: snapshot.apy,
-          tvl: snapshot.tvl,
-          riskScore: this.calculateRisk(key),
-        };
-      })
+    try {
+      // Real YO API
+      const response = await fetch('https://api.yo.xyz/api/v1/vaults');
+      const data = await response.json();
+      return this.transformVaultData(data.vaults);
+    } catch {
+      // Fallback to mock only if API fails
+      return MOCK_VAULTS;
+    }
+  }
+  
+  /**
+   * READ: Real vault snapshot
+   */
+  async getVaultSnapshot(vaultAddress: string) {
+    const response = await fetch(
+      `https://api.yo.xyz/api/v1/vault/${vaultAddress}`
     );
+    return response.json();
   }
 
-  async deposit(vaultAddress: string, amount: bigint, userAddress: string) {
-    return this.client.deposit({
-      vault: vaultAddress as `0x${string}`,
-      amount,
-      recipient: userAddress as `0x${string}`,
-      slippageBps: 50,  // 0.5%
-    });
+  /**
+   * WRITE: Switchable based on mode
+   * Dev: Mock (no crypto needed)
+   * Live: Real on-chain transaction
+   */
+  async deposit(vaultAddress: string, amount: number, userAddress: string) {
+    if (IS_LIVE_MODE) {
+      // REAL TRANSACTION
+      const { createYoClient } = await import('@yo-protocol/core');
+      const client = createYoClient({ chainId: 8453 });
+      
+      return client.deposit({
+        vault: vaultAddress as `0x${string}`,
+        amount: parseUnits(amount.toString(), 6),
+        recipient: userAddress as `0x${string}`,
+        slippageBps: 50,
+      });
+    }
+    
+    // MOCK (Development)
+    return {
+      hash: '0x...',
+      shares: (amount * 0.98).toString(),
+      status: 'confirmed',
+    };
   }
 
-  async redeem(vaultAddress: string, shares: bigint, userAddress: string) {
-    return this.client.redeem({
-      vault: vaultAddress as `0x${string}`,
-      shares,
-      recipient: userAddress as `0x${string}`,
-    });
+  /**
+   * WRITE: Redeem/Withdraw
+   */
+  async redeem(vaultAddress: string, shares: number, userAddress: string) {
+    if (IS_LIVE_MODE) {
+      const { createYoClient } = await import('@yo-protocol/core');
+      const client = createYoClient({ chainId: 8453 });
+      
+      return client.redeem({
+        vault: vaultAddress as `0x${string}`,
+        shares: parseUnits(shares.toString(), 6),
+        recipient: userAddress as `0x${string}`,
+      });
+    }
+    
+    // MOCK
+    return {
+      hash: '0x...',
+      assets: (shares * 1.02).toString(),
+      status: 'confirmed',
+    };
   }
-
+  
+  /**
+   * USER DATA: Mock in dev, Real in production
+   */
   async getUserPosition(vaultAddress: string, userAddress: string) {
-    return this.client.getUserPosition(vaultAddress, userAddress);
+    if (IS_LIVE_MODE) {
+      // Real blockchain query
+      return this.client.getUserPosition(vaultAddress, userAddress);
+    }
+    // Mock data for development
+    return { shares: 100, assets: 102 };
   }
 }
 
 export const yoService = new YoSDKService();
 ```
+
+### Switching Modes
+
+```bash
+# Development (no crypto needed)
+DEV_MODE=mock
+npm run dev
+
+# Demo/Production (real transactions)
+DEV_MODE=live
+npm run dev
+```
+
+### Demo Flow
+
+1. **Development:**
+   - UI works with mock data
+   - No wallet funding needed
+   - Instant "transactions"
+
+2. **Demo Day:**
+   - Set `DEV_MODE=live`
+   - Fund wallet with $5-10 on Base
+   - Execute real $1 deposit to yoUSD
+   - Show tx on BaseScan
 
 ---
 

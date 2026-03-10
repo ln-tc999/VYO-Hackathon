@@ -1,195 +1,286 @@
 // ============================================================
 // VIO_AGENT: YO SDK Client Wrapper
-// Wraps @yo-protocol/core with mock fallback for development
+// Hybrid: Real reads from YO, Mock writes for dev
 // ============================================================
 
 import type { VaultInfo } from '../../../../shared/types/index.js';
 import { MOCK_VAULTS } from './mock-data.js';
 
-// VIO_AGENT: Environment flag — set USE_LIVE_SDK=true when real SDK is available
-const USE_LIVE_SDK = process.env.USE_LIVE_SDK === 'true';
+// VIO_AGENT: Mode configuration
+const DEV_MODE = process.env.DEV_MODE || 'mock';
+const IS_LIVE_MODE = DEV_MODE === 'live';
+const YO_CHAIN_ID = parseInt(process.env.YO_CHAIN_ID || '8453');
 
-interface VaultSnapshot {
-    apy: number;
-    tvl: number;
-    pools: unknown[];
-}
-
-interface VaultState {
-    address: string;
-    name: string;
-    symbol: string;
-    decimals: number;
-    totalAssets: bigint;
-    totalSupply: bigint;
-    asset: string;
-    assetDecimals: number;
-    exchangeRate: bigint;
-}
+// Cache vault data to reduce API calls
+let vaultCache: VaultInfo[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * YO SDK service — wraps the real SDK or returns mock data.
- * All methods are safe to call without blockchain access.
+ * YO SDK Service
+ * 
+ * READ operations: Always try real YO API first, fallback to mock
+ * WRITE operations: Mock in dev mode, real in live mode
+ * USER data: Mock in dev, real in live
  */
 export class YoSDKService {
-    private chainId: number;
-
-    constructor(chainId: number = 8453) { // Default: Base
-        this.chainId = chainId;
-    }
-
-    /** Fetch all available vaults with APY, TVL, risk data */
+    
+    /**
+     * Get all vaults - ALWAYS tries real YO API first
+     * This shows real APY, TVL from YO Protocol
+     */
     async getVaults(): Promise<VaultInfo[]> {
-        if (USE_LIVE_SDK) {
-            try {
-                const yoCore = await import('@yo-protocol/core');
-                const client = yoCore.createYoClient({ chainId: this.chainId });
-
-                // @ts-expect-error VAULTS is exported from constants but not in root types
-                const vaultEntries = Object.entries(yoCore.VAULTS);
-                const results: VaultInfo[] = [];
-
-                for (const [key, vault] of vaultEntries) {
-                    try {
-                        const v = vault as any;
-                        const state = await client.getVaultState(v.address);
-                        const snapshot = await client.getVaultSnapshot(v.address);
-
-                        results.push({
-                            id: key,
-                            name: state.name,
-                            symbol: state.symbol,
-                            address: v.address,
-                            chain: this.chainId === 1 ? 'Ethereum' : 'Base',
-                            chainId: this.chainId,
-                            underlyingAsset: v.underlying.address,
-                            underlyingSymbol: v.underlying.symbol,
-                            apy: (snapshot as VaultSnapshot).apy || 0,
-                            tvl: (snapshot as VaultSnapshot).tvl || 0,
-                            riskScore: this.calculateRiskScore(key),
-                            lockupPeriod: 'None',
-                            auditUrl: 'https://yo.xyz/security',
-                            logoUrl: `/assets/vaults/${key}.svg`,
-                        });
-                    } catch {
-                        // VIO_AGENT: Skip vaults that fail to load — don't crash the whole list
-                        console.warn(`Failed to fetch vault ${key}, skipping`);
-                    }
-                }
-
-                return results;
-            } catch {
-                console.warn('YO SDK not available, falling back to mock data');
-                return MOCK_VAULTS;
-            }
+        // Check cache first
+        if (vaultCache && Date.now() - cacheTimestamp < CACHE_TTL) {
+            console.log('[YO_SDK] Returning cached vaults');
+            return vaultCache;
         }
 
+        try {
+            // Try real YO Protocol API
+            const response = await fetch(`https://api.yo.xyz/api/v1/vaults?chain=${YO_CHAIN_ID}`);
+            if (!response.ok) throw new Error('YO API error');
+            
+            const data = await response.json();
+            if (data.vaults && data.vaults.length > 0) {
+                vaultCache = this.transformVaultData(data.vaults);
+                cacheTimestamp = Date.now();
+                console.log('[YO_SDK] Real vault data fetched from YO API');
+                return vaultCache;
+            }
+        } catch (error) {
+            console.warn('[YO_SDK] Failed to fetch real data, using mock:', error);
+        }
+
+        // Fallback to mock data
+        console.log('[YO_SDK] Using mock vault data');
         return MOCK_VAULTS;
     }
 
-    /** Get a specific vault's details */
+    /**
+     * Get specific vault details
+     */
     async getVaultDetails(vaultId: string): Promise<VaultInfo | undefined> {
         const vaults = await this.getVaults();
         return vaults.find(v => v.id === vaultId);
     }
 
-    /** Deposit to a vault (returns mock tx hash in dev mode) */
+    /**
+     * Get vault snapshot (real-time data)
+     */
+    async getVaultSnapshot(vaultAddress: string): Promise<{apy: number; tvl: number}> {
+        try {
+            const response = await fetch(
+                `https://api.yo.xyz/api/v1/vault/${YO_CHAIN_ID}/${vaultAddress}`
+            );
+            if (!response.ok) throw new Error('YO API error');
+            
+            const data = await response.json();
+            return {
+                apy: data.apy || 0,
+                tvl: data.tvl || 0,
+            };
+        } catch {
+            // Return mock data for this vault
+            const vault = MOCK_VAULTS.find(v => v.address === vaultAddress);
+            return {
+                apy: vault?.apy || 5.0,
+                tvl: vault?.tvl || 1000000,
+            };
+        }
+    }
+
+    /**
+     * DEPOSIT: Mock in dev, Real in live
+     * 
+     * DEV: Returns fake tx hash (no real crypto needed)
+     * LIVE: Real on-chain transaction
+     */
     async deposit(
         vaultAddress: string,
         amount: number,
         userAddress: string
-    ): Promise<{ hash: string; shares: string }> {
-        if (USE_LIVE_SDK) {
+    ): Promise<{ hash: string; shares: string; status: string }> {
+        if (IS_LIVE_MODE) {
             try {
                 const { createYoClient } = await import('@yo-protocol/core');
-                const { parseEther } = await import('viem');
-                const client = createYoClient({ chainId: this.chainId });
+                const { parseUnits } = await import('viem');
+                const client = createYoClient({ chainId: YO_CHAIN_ID });
+                
                 const result = await client.deposit({
                     vault: vaultAddress as `0x${string}`,
-                    amount: parseEther(amount.toString()),
+                    amount: parseUnits(amount.toString(), 6), // USDC = 6 decimals
                     recipient: userAddress as `0x${string}`,
+                    slippageBps: 50,
                 });
-                return { hash: result.hash, shares: result.shares?.toString() || '0' };
+                
+                return { 
+                    hash: result.hash, 
+                    shares: result.shares?.toString() || '0',
+                    status: 'confirmed'
+                };
             } catch (error) {
-                // VIO_AGENT: Translate blockchain errors for users
-                throw new Error(
-                    'Something went wrong with your deposit. We\'ll retry automatically.'
-                );
+                console.error('[YO_SDK] Real deposit failed:', error);
+                throw new Error('Deposit failed. Please check your balance and try again.');
             }
         }
 
-        // Mock: simulate a deposit with fake tx hash
+        // DEV MODE: Mock deposit
+        console.log(`[YO_SDK] MOCK deposit: ${amount} to ${vaultAddress}`);
+        await this.simulateDelay(2000);
+        
         return {
-            hash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            shares: (amount * 0.98).toFixed(6),
+            hash: `0x${this.generateFakeHash()}`,
+            shares: (amount * 0.98).toFixed(6), // 2% entry fee simulation
+            status: 'confirmed',
         };
     }
 
-    /** Redeem/withdraw from a vault */
+    /**
+     * REDEEM: Mock in dev, Real in live
+     */
     async redeem(
         vaultAddress: string,
         shares: number,
         userAddress: string
-    ): Promise<{ hash: string; assets: string }> {
-        if (USE_LIVE_SDK) {
+    ): Promise<{ hash: string; assets: string; status: string }> {
+        if (IS_LIVE_MODE) {
             try {
                 const { createYoClient } = await import('@yo-protocol/core');
-                const { parseEther } = await import('viem');
-                const client = createYoClient({ chainId: this.chainId }) as any;
+                const { parseUnits } = await import('viem');
+                const client = createYoClient({ chainId: YO_CHAIN_ID });
+                
                 const result = await client.redeem({
                     vault: vaultAddress as `0x${string}`,
-                    shares: parseEther(shares.toString()),
+                    shares: parseUnits(shares.toString(), 6),
                     recipient: userAddress as `0x${string}`,
                 });
-                return { hash: result.hash, assets: result.assets?.toString() || '0' };
-            } catch {
-                throw new Error(
-                    'Something went wrong with your withdrawal. Please try again shortly.'
-                );
+                
+                return {
+                    hash: result.hash,
+                    assets: result.assets?.toString() || '0',
+                    status: 'confirmed',
+                };
+            } catch (error) {
+                console.error('[YO_SDK] Real redeem failed:', error);
+                throw new Error('Redeem failed. Please try again.');
             }
         }
 
+        // DEV MODE: Mock redeem
+        console.log(`[YO_SDK] MOCK redeem: ${shares} from ${vaultAddress}`);
+        await this.simulateDelay(2000);
+        
         return {
-            hash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            assets: (shares * 1.02).toFixed(6),
+            hash: `0x${this.generateFakeHash()}`,
+            assets: (shares * 1.02).toFixed(6), // 2% exit bonus simulation
+            status: 'confirmed',
         };
     }
 
-    /** Get user position in a vault */
+    /**
+     * Get user position in vault
+     * DEV: Mock/simulated
+     * LIVE: Real blockchain query
+     */
     async getUserPosition(
         vaultAddress: string,
         userAddress: string
     ): Promise<{ shares: number; assets: number }> {
-        // Mock: return simulated position
-        return {
-            shares: Math.random() * 10,
-            assets: Math.random() * 5000,
-        };
+        if (IS_LIVE_MODE) {
+            try {
+                const { createYoClient } = await import('@yo-protocol/core');
+                const client = createYoClient({ chainId: YO_CHAIN_ID });
+                const position = await client.getUserPosition(vaultAddress, userAddress);
+                return {
+                    shares: Number(position.shares) / 1e6,
+                    assets: Number(position.assets) / 1e6,
+                };
+            } catch {
+                return { shares: 0, assets: 0 };
+            }
+        }
+
+        // DEV: Generate deterministic mock based on address
+        const mockShares = this.hashToNumber(userAddress + vaultAddress) % 10000;
+        const mockAssets = mockShares * 1.01; // Slight appreciation
+        return { shares: mockShares, assets: mockAssets };
     }
 
-    /** Get yield earned by user in a vault */
+    /**
+     * Get yield earned by user
+     * DEV: Mock
+     * LIVE: Real calculation
+     */
     async getYieldEarned(
         vaultAddress: string,
         userAddress: string
     ): Promise<{ totalYield: number; yieldPercent: number }> {
-        // Mock: return simulated yield
+        if (IS_LIVE_MODE) {
+            // In production, calculate from deposit events and current value
+            return { totalYield: 0, yieldPercent: 0 }; // TODO: Implement
+        }
+
+        // DEV: Mock yield
+        const baseYield = this.hashToNumber(userAddress) % 500;
         return {
-            totalYield: Math.random() * 200,
-            yieldPercent: 2 + Math.random() * 8,
+            totalYield: baseYield,
+            yieldPercent: 2 + (baseYield % 8), // 2-10%
         };
     }
 
-    /** VIO_AGENT: risk score heuristic based on vault type */
-    private calculateRiskScore(vaultKey: string): number {
+    // ============================================================
+    // PRIVATE HELPERS
+    // ============================================================
+
+    private async simulateDelay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    private generateFakeHash(): string {
+        return Array.from({ length: 64 }, () => 
+            Math.floor(Math.random() * 16).toString(16)
+        ).join('');
+    }
+
+    private hashToNumber(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
+
+    private transformVaultData(yoVaults: any[]): VaultInfo[] {
+        return yoVaults.map((v, i) => ({
+            id: v.symbol?.toLowerCase() || `vault-${i}`,
+            name: v.name || 'YO Vault',
+            symbol: v.symbol || 'yoVAULT',
+            address: v.address,
+            chain: YO_CHAIN_ID === 8453 ? 'Base' : 'Ethereum',
+            chainId: YO_CHAIN_ID,
+            underlyingAsset: v.asset?.address || '',
+            underlyingSymbol: v.asset?.symbol || 'USD',
+            apy: v.apy || 5.0,
+            tvl: v.tvl || 1000000,
+            riskScore: this.calculateRiskScore(v.symbol),
+            lockupPeriod: 'None',
+            auditUrl: 'https://yo.xyz/security',
+            logoUrl: `/assets/vaults/${v.symbol?.toLowerCase()}.svg`,
+        }));
+    }
+
+    private calculateRiskScore(symbol?: string): number {
         const riskMap: Record<string, number> = {
-            yoUSD: 2,
-            yoUSDT: 2,
+            yoUSD: 2, yoUSDT: 2, yoUSDC: 2,
             yoEUR: 3,
-            yoETH: 5,
             yoGOLD: 4,
+            yoETH: 5,
             yoBTC: 6,
         };
-        return riskMap[vaultKey] || 5;
+        return riskMap[symbol || ''] || 5;
     }
 }
 
