@@ -1,14 +1,51 @@
 # Vyo Apps — Backend Agent Instructions
 
-> **Role:** Backend + AI Lead
-> **Stack:** Node.js, Express, GraphQL, PostgreSQL, Redis, OpenRouter API or NVIDIA API
-> **AI Persona:** Vio Agent (Vio Agent engine)
+> **Role:** Backend + AI Lead  
+> **Stack:** Node.js, Express, YO SDK, OpenRouter API (Free AI Models)  
+> **AI Persona:** Vio Agent  
+> **Architecture:** Stateless (No Database) - All data on Blockchain  
+> **⚠️ HACKATHON REQUIREMENT:** Real YO SDK transactions (NOT mockups!)
+
+---
+
+## 🚨 HACKATHON REQUIREMENTS (CRITICAL!)
+
+### Must Have for Demo:
+- [ ] **REAL YO SDK Integration** - `@yo-protocol/core` 
+- [ ] **LIVE Transactions** - Real deposit/redeem on Base/Ethereum
+- [ ] **Working On-Chain Flows** - Not just UI mockups
+- [ ] **Wallet Integration** - WalletConnect with real transactions
+
+### Judging Criteria (20% Quality of Integration):
+```
+❌ Mockups alone will NOT qualify
+❌ Fake transaction hashes  
+✅ Real deposit() calls to YO vaults
+✅ Real redeem() calls with actual on-chain execution
+✅ Transaction confirmation on BaseScan/Etherscan
+```
+
+### Demo Setup:
+```bash
+# 1. Set environment
+USE_LIVE_SDK=true
+YO_CHAIN_ID=8453  # Base mainnet (low gas)
+
+# 2. Prepare test wallet
+# - Fund with small amount ($5-10) on Base
+# - Connect wallet in UI
+# - Execute real $1 deposit to yoUSD vault
+
+# 3. Show transaction on BaseScan
+# - Copy tx hash from response
+# - Show on https://basescan.org
+```
 
 ---
 
 ## 🎯 Your Mission
 
-Build the **brain of Vyo Apps** — the API layer, Vio Agent autonomous agent loop, and all business logic. You own everything between the frontend and the blockchain.
+Build the **stateless API layer** for Vyo Apps — a lightweight proxy between the frontend and blockchain. The backend handles AI logic (Vio Agent) and API routing, but **all user data lives on the blockchain**.
 
 **Core principle:** Every action Vio Agent takes must be logged with human-readable reasoning. No black box decisions.
 
@@ -25,244 +62,316 @@ backend/
 │   │   ├── vaults.ts               # Vault listing + details
 │   │   ├── dashboard.ts            # Net worth, yield summary
 │   │   ├── ai.ts                   # Decisions, chat, approvals
-│   │   └── auth.ts                 # Wallet-based auth (SIWE)
+│   │   └── transactions.ts         # Deposit & withdrawal flows
 │   ├── services/
 │   │   ├── yo-sdk/
-│   │   │   ├── index.ts            # YO SDK wrapper (consume from blockchain agent)
-│   │   │   └── types.ts
-│   │   ├── ai/
-│   │   │   ├── vioAgent.ts        # Main autonomous loop
-│   │   │   ├── decisionEngine.ts   # Rule-based decision tree
-│   │   │   ├── openRouterClient.ts     # OpenRouter API integration
-│   │   │   ├── riskScorer.ts       # Risk profile calculator
-│   │   │   └── goalForecaster.ts   # Monte Carlo / projection
-│   │   ├── plaid/
-│   │   │   └── mockPlaid.ts        # Mock bank data for hackathon
-│   │   └── notifications/
-│   │       └── pushNotification.ts # Alert user on AI decisions
-│   ├── models/
-│   │   ├── User.ts
-│   │   ├── Goal.ts
-│   │   ├── VaultAllocation.ts
-│   │   ├── AIDecision.ts
-│   │   └── Transaction.ts
+│   │   │   ├── client.ts           # YO SDK wrapper
+│   │   │   └── mock-data.ts        # Mock vaults for dev
+│   │   └── ai/
+│   │       ├── vioAgent.ts         # Main autonomous loop
+│   │       ├── decisionEngine.ts   # Rule-based decision tree
+│   │       ├── openRouterClient.ts # OpenRouter API integration
+│   │       └── riskScorer.ts       # Risk profile calculator
 │   ├── jobs/
-│   │   └── vioLoop.ts             # Cron job runner
-│   ├── middleware/
-│   │   ├── auth.ts                 # JWT / SIWE verify
-│   │   └── errorHandler.ts
-│   └── graphql/
-│       ├── schema.ts
-│       └── resolvers.ts
-├── prisma/
-│   └── schema.prisma               # DB schema
+│   │   └── vioLoop.ts              # Cron job runner (every 15 min)
+│   └── middleware/
+│       └── auth.ts                 # Wallet-only auth (X-Wallet-Address header)
+├── package.json
+├── tsconfig.json
 └── .env.example
 ```
 
 ---
 
-## 🗄️ Database Schema (Prisma)
+## 🏗️ Architecture Overview
 
-```prisma
-// prisma/schema.prisma
+### Stateless Design Philosophy
 
-model User {
-  id            String    @id @default(cuid())
-  walletAddress String    @unique
-  riskProfile   RiskLevel @default(MODERATE)
-  createdAt     DateTime  @default(now())
-  goals         Goal[]
-  decisions     AIDecision[]
-}
-
-model Goal {
-  id              String          @id @default(cuid())
-  userId          String
-  user            User            @relation(fields: [userId], references: [id])
-  name            String
-  targetAmount    Float
-  currentAmount   Float           @default(0)
-  deadline        DateTime
-  priority        Priority        @default(MEDIUM)
-  liquidityNeeds  LiquidityType   @default(FLEXIBLE)
-  riskProfile     RiskLevel       @default(MODERATE)
-  status          GoalStatus      @default(ACTIVE)
-  allocations     VaultAllocation[]
-  autoDeposit     AutoDeposit?
-  createdAt       DateTime        @default(now())
-}
-
-model VaultAllocation {
-  id             String  @id @default(cuid())
-  goalId         String
-  goal           Goal    @relation(fields: [goalId], references: [id])
-  vaultId        String  // YO vault ID
-  percentage     Float   // 0-100
-  currentBalance Float   @default(0)
-  rationale      String  // AI explanation
-}
-
-model AIDecision {
-  id           String         @id @default(cuid())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id])
-  goalId       String?
-  type         DecisionType
-  action       String         // "Move $500 from Vault A to Vault B"
-  reasoning    String         // Plain English why
-  expectedGain Float
-  gasCost      Float
-  status       DecisionStatus @default(PENDING_APPROVAL)
-  createdAt    DateTime       @default(now())
-  executedAt   DateTime?
-}
-
-model Transaction {
-  id        String   @id @default(cuid())
-  goalId    String
-  type      TxType   // DEPOSIT | REDEEM | REBALANCE
-  amount    Float
-  vaultId   String
-  txHash    String?
-  status    TxStatus @default(PENDING)
-  createdAt DateTime @default(now())
-}
-
-enum RiskLevel     { CONSERVATIVE MODERATE AGGRESSIVE }
-enum Priority      { LOW MEDIUM HIGH }
-enum LiquidityType { INSTANT DAY_1 WEEK_1 FLEXIBLE }
-enum GoalStatus    { ACTIVE PAUSED COMPLETED }
-enum DecisionType  { REBALANCE RISK_ALERT DEPOSIT_SUGGESTION GOAL_FORECAST }
-enum DecisionStatus { PENDING_APPROVAL APPROVED REJECTED EXECUTED }
-enum TxType        { DEPOSIT REDEEM REBALANCE }
-enum TxStatus      { PENDING CONFIRMED FAILED }
 ```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Frontend   │────▶│   Backend    │────▶│  Blockchain  │
+│  (IndexedDB) │◀────│  (Stateless) │◀────│  (YO Vaults) │
+└──────────────┘     └──────────────┘     └──────────────┘
+      │                     │                     │
+      │                     ▼                     │
+      │              ┌──────────────┐             │
+      └─────────────▶│ OpenRouter   │◀────────────┘
+                     │   (Free AI)  │
+                     └──────────────┘
+```
+
+**Key Points:**
+- **No Database**: User data (goals, transactions) stored on blockchain or IndexedDB
+- **No Sessions**: Wallet address is the only identifier (X-Wallet-Address header)
+- **No JWT**: Pure blockchain auth via wallet signature
+- **In-Memory**: Demo/hackathon data stored in Maps (refreshed on restart)
+- **AI**: OpenRouter free models (NVIDIA Llama 70B)
+
+---
+
+## 🔐 Auth: Wallet-Only (No JWT/Session/Database)
+
+**Philosophy:** Pure blockchain auth. Backend is completely stateless.
+
+### How It Works
+1. User connects wallet via WalletConnect (wagmi) on frontend
+2. Wallet address stored in **IndexedDB** (browser) - not backend
+3. Every API call includes header: `X-Wallet-Address: 0x...`
+4. Backend validates address format and treats it as user ID
+5. No sessions, no JWT, no database lookup
+
+### Backend Middleware
+
+```typescript
+// middleware/auth.ts
+import { isAddress } from 'viem';
+
+export function walletAuth(req, res, next) {
+  const walletAddress = req.headers['x-wallet-address'];
+  
+  if (!walletAddress || !isAddress(walletAddress)) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Wallet address required' 
+    });
+  }
+  
+  // Set user context - use lowercase address as ID
+  req.user = { 
+    id: walletAddress.toLowerCase(),
+    walletAddress: walletAddress.toLowerCase() 
+  };
+  
+  next();
+}
+```
+
+### Frontend Usage
+
+```typescript
+// Frontend API call
+const response = await fetch('/api/goals', {
+  headers: {
+    'X-Wallet-Address': walletAddress,  // From IndexedDB
+  },
+});
+```
+
+**Benefits:**
+- ✅ No JWT expiration issues
+- ✅ No session management
+- ✅ Stateless backend (easy to scale)
+- ✅ Truly decentralized
+- ✅ No database costs
+
+---
+
+## 🗄️ Data Storage Strategy
+
+### Where Data Lives
+
+| Data Type | Storage Location | Notes |
+|-----------|-----------------|-------|
+| **Wallet/Identity** | Blockchain | User's wallet is their identity |
+| **Goals** | IndexedDB (frontend) + In-Memory (backend) | Synced from blockchain events |
+| **Vault Positions** | YO Protocol Contracts | Read from blockchain |
+| **Transactions** | Blockchain (tx hashes) | Immutable on-chain |
+| **AI Decisions** | In-Memory (backend) | Temporary, logged to console |
+| **User Preferences** | IndexedDB (frontend) | Risk profile, settings |
+
+### In-Memory Storage (Hackathon/Demo)
+
+```typescript
+// services/ai/vioAgent.ts
+// Temporary in-memory storage (resets on server restart)
+
+const decisionsStore = new Map<string, AIDecision[]>(); // wallet -> decisions
+const goalsStore = new Map<string, Goal[]>();           // wallet -> goals
+
+export function storeUserGoals(walletAddress: string, goals: Goal[]): void {
+  goalsStore.set(walletAddress, goals);
+}
+
+export function getUserGoals(walletAddress: string): Goal[] {
+  return goalsStore.get(walletAddress) || [];
+}
+```
+
+**Note:** For production, use:
+- The Graph (subgraph) for indexed blockchain data
+- IPFS/Arweave for off-chain metadata
+- Or keep minimal Redis cache (optional)
 
 ---
 
 ## 🛣️ REST API Endpoints
 
-### Goals
+### Goals (In-Memory + Blockchain)
 ```
-GET    /api/goals                    → List user goals
+GET    /api/goals                    → List user goals (from memory)
 POST   /api/goals                    → Create goal (+ AI allocates vaults)
-GET    /api/goals/:id                → Goal detail + allocations
-PATCH  /api/goals/:id                → Update goal params
-POST   /api/goals/:id/deposit        → Trigger deposit flow
-POST   /api/goals/:id/redeem         → Trigger withdrawal
-DELETE /api/goals/:id                → Archive goal
+GET    /api/goals/:id                → Goal detail
+PATCH  /api/goals/:id                → Update goal
+DELETE /api/goals/:id                → Delete goal
+POST   /api/goals/:id/deposit        → Multi-vault deposit
+POST   /api/goals/:id/redeem         → Withdraw from vaults
 ```
 
-### Vaults
+### Vaults (YO Protocol)
 ```
 GET    /api/vaults                   → All YO vaults (cached 5min)
-GET    /api/vaults/:id               → Vault detail: APY, TVL, risk, lockup
+GET    /api/vaults/:id               → Vault detail: APY, TVL, risk
 ```
 
-### Dashboard
+### Dashboard (Aggregated)
 ```
-GET    /api/dashboard/networth       → Aggregated total balance
-GET    /api/dashboard/yield          → Yield earned this month/year
-GET    /api/dashboard/breakdown      → TradFi vs DeFi split
+GET    /api/dashboard                → Net worth, yield, goals summary
 ```
 
 ### AI / Vio Agent
 ```
 GET    /api/ai/decisions             → All decisions (paginated)
-GET    /api/ai/decisions/pending     → Awaiting user approval
-POST   /api/ai/decisions/:id/approve → User approves → execute
-POST   /api/ai/decisions/:id/dismiss → User dismisses
-POST   /api/ai/chat                  → Chat with Vio Agent (natural language)
+GET    /api/ai/decisions/pending     → Awaiting approval
+POST   /api/ai/decisions/:id/approve → Approve decision
+POST   /api/ai/decisions/:id/reject  → Reject decision
+POST   /api/ai/rebalance             → Trigger Vio Agent scan
+POST   /api/ai/chat                  → Chat with Vio Agent
 ```
 
-### Auth
+### Transactions (YO Protocol)
 ```
-POST   /api/auth/nonce               → Get SIWE nonce
-POST   /api/auth/verify              → Verify signature → JWT
+GET    /api/transactions             → User's tx history
+POST   /api/transactions/deposit     → Execute deposit
+POST   /api/transactions/redeem      → Execute withdrawal
 ```
 
 ---
 
-## 🤖 Vio Agent Agent Loop
+## 🤖 Vio Agent Architecture
 
 ### Main Loop (runs every 15 minutes via cron)
 
 ```typescript
 // jobs/vioLoop.ts
 import cron from 'node-cron';
-import { runVio AgentForAllUsers } from '../services/ai/vioAgent';
+import { runVioAgentForAllUsers } from '../services/ai/vioAgent';
 
 // Every 15 minutes
+let isRunning = false;
 cron.schedule('*/15 * * * *', async () => {
-  console.log('[VERA] Starting agent loop...');
-  await runVio AgentForAllUsers();
+  if (isRunning) return;
+  isRunning = true;
+  
+  console.log('[VIO_AGENT] Starting agent loop...');
+  await runVioAgentForAllUsers();
+  
+  isRunning = false;
 });
 ```
 
+### Vio Agent Service
+
 ```typescript
 // services/ai/vioAgent.ts
-export async function runVio AgentForUser(userId: string) {
-  const state = await gatherUserState(userId);
+
+const decisionsStore = new Map<string, AIDecision[]>();
+const goalsStore = new Map<string, Goal[]>();
+
+export async function runVioAgentForUser(walletAddress: string): Promise<AIDecision[]> {
+  // 1. GATHER STATE (from memory + blockchain)
+  const state = await gatherUserState(walletAddress);
+  
+  // 2. PLAN (rule-based decision engine)
   const decisions = await decisionEngine(state);
+  
+  // 3. CREATE DECISION RECORDS
+  const aiDecisions: AIDecision[] = decisions.map(dec => ({
+    id: generateDecisionId(),
+    goalId: dec.goalId || '',
+    goalName: state.goals.find(g => g.id === dec.goalId)?.name || 'General',
+    type: dec.type.toLowerCase() as AIDecision['type'],
+    action: dec.action,
+    reasoning: dec.reasoning,
+    expectedGain: dec.expectedGain,
+    gasCost: dec.gasCost,
+    status: dec.requiresApproval ? 'pending_approval' : 'executed',
+    createdAt: new Date().toISOString(),
+  }));
 
-  for (const decision of decisions) {
-    // Log ALL decisions, even auto-executed ones
-    const saved = await AIDecision.create(decision);
+  // 4. STORE IN MEMORY
+  const existing = decisionsStore.get(walletAddress) || [];
+  decisionsStore.set(walletAddress, [...aiDecisions, ...existing]);
 
-    if (decision.requiresApproval) {
-      await notifyUser(userId, saved);           // push notif → modal
-    } else {
-      await executeDecision(saved);              // auto-execute
+  // 5. ACT (auto-execute if no approval needed)
+  for (const decision of aiDecisions) {
+    if (decision.status === 'executed') {
+      console.log(`[VIO_AGENT] Auto-executing: ${decision.action}`);
+      // await executeOnChain(decision);
     }
   }
+
+  return aiDecisions;
 }
 
-async function gatherUserState(userId: string) {
-  const [goals, vaults, gasPrice] = await Promise.all([
-    Goal.findMany({ where: { userId, status: 'ACTIVE' } }),
-    yo.getVaults(),                              // from YO SDK service
-    getGasPrice(),
-  ]);
-  return { goals, vaults, gasPrice };
+async function gatherUserState(walletAddress: string): Promise<UserState> {
+  return {
+    walletAddress,
+    goals: goalsStore.get(walletAddress) || [],
+    vaults: await yoService.getVaults(),
+    gasPrice: 20, // gwei - could fetch from network
+  };
 }
 ```
 
-### Decision Engine (Rule-Based for Hackathon)
+### Decision Engine (Rule-Based)
 
 ```typescript
 // services/ai/decisionEngine.ts
+
 export async function decisionEngine(state: UserState): Promise<Decision[]> {
   const decisions: Decision[] = [];
 
   for (const goal of state.goals) {
     // 1. OPPORTUNITY SCAN
-    const betterVault = findBetterVault(goal, state.vaults);
-    if (betterVault && betterVault.apy > currentApy(goal) + 2) {
-      const gasCost = estimateGas(state.gasPrice);
-      const annualGain = calculateGain(goal.currentAmount, betterVault.apy);
+    const currentVault = goal.vaultAllocations[0];
+    const currentApy = getVaultApy(currentVault.vaultId, state.vaults);
+    
+    // Find better vault with same risk
+    const betterVault = state.vaults.find(v => 
+      v.riskScore <= getCurrentRisk(goal) + 1 &&
+      v.apy > currentApy + 2  // At least 2% better
+    );
 
-      if (gasCost < annualGain * 0.5) {  // gas < 50% of annual gain
+    if (betterVault) {
+      const gasCost = estimateGas(state.gasPrice, 'rebalance');
+      const annualGain = (goal.currentAmount * (betterVault.apy - currentApy)) / 100;
+      
+      // Only suggest if gas < 50% of annual gain
+      if (gasCost < annualGain * 0.5) {
         decisions.push({
           type: 'REBALANCE',
           goalId: goal.id,
-          action: `Move $${goal.currentAmount} to ${betterVault.name}`,
-          reasoning: `APY ${betterVault.apy - currentApy(goal)}% higher with similar risk`,
+          action: `Move $${goal.currentAmount.toFixed(2)} to ${betterVault.name}`,
+          reasoning: `${betterVault.name} offers ${(betterVault.apy - currentApy).toFixed(2)}% higher APY with similar risk`,
           expectedGain: annualGain,
           gasCost,
-          requiresApproval: goal.currentAmount > 500,  // auto if < $500
+          requiresApproval: goal.currentAmount > 500,
         });
       }
     }
 
     // 2. GOAL TRACKING
     const progress = goal.currentAmount / goal.targetAmount;
-    const expectedProgress = getExpectedProgress(goal);
-    if (progress < expectedProgress - 0.1) {  // 10% off track
+    const expectedProgress = calculateExpectedProgress(goal);
+    
+    if (progress < expectedProgress - 0.1) {  // 10% behind
       decisions.push({
         type: 'DEPOSIT_SUGGESTION',
         goalId: goal.id,
-        action: `Increase monthly deposit by $${suggestIncrease(goal)}`,
-        reasoning: `Goal is ${Math.round((expectedProgress - progress) * 100)}% behind schedule`,
+        action: `Increase monthly deposit`,
+        reasoning: `Goal "${goal.name}" is ${Math.round((expectedProgress - progress) * 100)}% behind schedule`,
+        expectedGain: 0,
+        gasCost: 0,
         requiresApproval: true,
       });
     }
@@ -272,43 +381,47 @@ export async function decisionEngine(state: UserState): Promise<Decision[]> {
 }
 ```
 
-### OpenRouter API Integration (Vio Agent Chat)
+---
 
-We use **OpenRouter** for access to multiple free/cheap AI models (NVIDIA, Meta, Mistral, etc.).
+## 🧠 OpenRouter AI Integration (Free Models)
+
+### Available Free Models
+
+| Model | Provider | Cost | Quality |
+|-------|----------|------|---------|
+| `nvidia/llama-3.1-nemotron-70b-instruct:free` | NVIDIA | **FREE** | ⭐⭐⭐⭐⭐ |
+| `nvidia/mistral-nemo-instruct-2407:free` | NVIDIA | **FREE** | ⭐⭐⭐⭐ |
+| `meta-llama/llama-3.1-70b-instruct:free` | Meta | **FREE** | ⭐⭐⭐⭐⭐ |
+| `mistralai/mistral-7b-instruct:free` | Mistral | **FREE** | ⭐⭐⭐ |
+| `google/gemini-flash-1.5:free` | Google | **FREE** | ⭐⭐⭐⭐ |
+
+### Implementation
 
 ```typescript
 // services/ai/openRouterClient.ts
+
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
-// Free/Cheap Models via OpenRouter
-const MODELS = {
-  // NVIDIA free models
+export const AI_MODELS = {
   nvidiaLlama: 'nvidia/llama-3.1-nemotron-70b-instruct:free',
   nvidiaMistral: 'nvidia/mistral-nemo-instruct-2407:free',
-  
-  // Other free options
   metaLlama: 'meta-llama/llama-3.1-70b-instruct:free',
   mistral: 'mistralai/mistral-7b-instruct:free',
-  googleGemini: 'google/gemini-flash-1.5:free',
-  
-  // Cheap paid options (fallback)
-  anthropicClaude: 'anthropic/claude-3.5-sonnet',
-  openaiGpt4: 'openai/gpt-4o-mini',
 };
 
 export async function chatWithVioAgent(
   message: string,
-  history: Message[],
+  history: ChatMessage[] = [],
   userContext: UserContext,
-  model: string = MODELS.nvidiaLlama // Default to free NVIDIA
-) {
+  model: string = AI_MODELS.nvidiaLlama
+): Promise<string> {
   const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://vyo.finance', // Required by OpenRouter
+      'HTTP-Referer': 'https://vyo.finance',
       'X-Title': 'Vyo Apps',
     },
     body: JSON.stringify({
@@ -316,16 +429,16 @@ export async function chatWithVioAgent(
       messages: [
         {
           role: 'system',
-          content: `You are Vio Agent, the AI financial coach for Vyo Apps.
-You help users manage their savings goals and DeFi yield optimization.
-User context: ${JSON.stringify(userContext)}
+          content: `You are Vio Agent, AI financial coach for Vyo Apps.
+Help users with savings goals and DeFi yield.
+User: ${userContext.walletAddress}
+Goals: ${userContext.goals.length}
+Net Worth: $${userContext.currentNetWorth}
 
 Rules:
-- Always respond in plain English, no DeFi jargon
-- For goal creation, extract: name, targetAmount, deadline
-- For deposit questions, reference their current goal progress
-- Always mention risk when suggesting vault changes
-- Return JSON when parsing goals: { goalName, targetAmount, deadline, suggestedRisk }`
+- Plain English only, no jargon
+- Always mention risk for vault changes
+- Extract goal data: name, target, deadline`
         },
         ...history,
         { role: 'user', content: message }
@@ -335,200 +448,96 @@ Rules:
     })
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'AI request failed');
-  }
-
   const data = await response.json();
   return data.choices[0].message.content;
 }
 
-// Fallback to alternative model if primary fails
-export async function chatWithVioAgentWithFallback(
+// Fallback system
+export async function chatWithFallback(
   message: string,
-  history: Message[],
+  history: ChatMessage[],
   userContext: UserContext
-) {
-  const models = [
-    MODELS.nvidiaLlama,
-    MODELS.nvidiaMistral,
-    MODELS.metaLlama,
-    MODELS.mistral,
-  ];
-
+): Promise<string> {
+  const models = Object.values(AI_MODELS);
+  
   for (const model of models) {
     try {
       return await chatWithVioAgent(message, history, userContext, model);
     } catch (err) {
-      console.warn(`Model ${model} failed, trying next...`);
-      continue;
+      console.warn(`${model} failed, trying next...`);
     }
   }
-
+  
   throw new Error('All AI models failed');
 }
 ```
 
-### NVIDIA API Alternative (Direct)
-
-If you prefer direct NVIDIA API without OpenRouter:
-
-```typescript
-// services/ai/nvidiaClient.ts
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
-const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-
-export async function chatWithNvidia(
-  message: string,
-  history: Message[],
-  userContext: UserContext
-) {
-  const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${NVIDIA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'nvidia/llama-3.1-nemotron-70b-instruct',
-      messages: [
-        {
-          role: 'system',
-          content: `You are Vio Agent, the AI financial coach for Vyo Apps...`
-        },
-        ...history,
-        { role: 'user', content: message }
-      ],
-      max_tokens: 1024,
-      temperature: 0.2,
-      top_p: 0.7,
-    })
-  });
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-}
-```
-
 ---
 
-## 🧠 AI Goal Allocation Logic
+## 🔌 YO SDK Integration
 
-When a goal is created, Vio Agent auto-assigns vault splits:
-
-```typescript
-// services/ai/riskScorer.ts
-export function allocateVaults(
-  riskProfile: RiskLevel,
-  liquidityNeeds: LiquidityType,
-  availableVaults: Vault[]
-): VaultAllocation[] {
-
-  const strategies = {
-    CONSERVATIVE: [
-      { type: 'liquid',       pct: 40, reason: 'Instant access for emergencies' },
-      { type: 'conservative', pct: 35, reason: 'Stable yield, low risk' },
-      { type: 'stable',       pct: 25, reason: 'Capital preservation' },
-    ],
-    MODERATE: [
-      { type: 'liquid',       pct: 20, reason: 'Flexibility buffer' },
-      { type: 'growth',       pct: 50, reason: 'Optimized yield for timeline' },
-      { type: 'diversified',  pct: 30, reason: 'Multi-protocol diversification' },
-    ],
-    AGGRESSIVE: [
-      { type: 'liquid',       pct: 10, reason: 'Minimum liquidity buffer' },
-      { type: 'high_yield',   pct: 70, reason: 'Maximum yield potential' },
-      { type: 'multi_protocol', pct: 20, reason: 'Protocol diversification' },
-    ],
-  };
-
-  const strategy = strategies[riskProfile];
-  return strategy.map(s => ({
-    vaultId: findVaultByType(availableVaults, s.type).id,
-    percentage: s.pct,
-    rationale: s.reason,
-  }));
-}
-```
-
----
-
-## 🔐 Auth: Wallet-Only (No JWT/Session)
-
-**Philosophy:** Since Vyo Apps is a blockchain-native app, we use **WalletConnect** as the sole authentication method. No JWT, no sessions, no SIWE.
-
-### How It Works
-1. User connects wallet via WalletConnect (wagmi)
-2. Wallet address is stored in **IndexedDB** on the frontend
-3. Every API call includes the wallet address in the header: `X-Wallet-Address: 0x...`
-4. Backend treats wallet address as the user ID
-
-### Frontend Session Store (IndexedDB)
+### Core Functions
 
 ```typescript
-// frontend/src/lib/session.ts
-import { openDB } from 'idb';
+// services/yo-sdk/client.ts
 
-const DB_NAME = 'vyo-session';
-const STORE_NAME = 'wallet';
+import { createYoClient, VAULTS } from '@yo-protocol/core';
 
-export async function saveWalletSession(address: string, chainId: number) {
-  const db = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      db.createObjectStore(STORE_NAME);
-    },
-  });
-  await db.put(STORE_NAME, { address, chainId, connectedAt: Date.now() }, 'session');
-}
+export class YoSDKService {
+  private client;
 
-export async function getWalletSession() {
-  const db = await openDB(DB_NAME, 1);
-  return db.get(STORE_NAME, 'session');
-}
-
-export async function clearWalletSession() {
-  const db = await openDB(DB_NAME, 1);
-  await db.delete(STORE_NAME, 'session');
-}
-```
-
-### Backend Middleware
-
-```typescript
-// middleware/auth.ts
-export function walletAuth(req: Request, res: Response, next: NextFunction) {
-  const walletAddress = req.headers['x-wallet-address'] as string;
-  
-  if (!walletAddress || !isValidAddress(walletAddress)) {
-    return res.status(401).json({ error: 'Wallet address required' });
+  constructor(chainId: number = 8453) {  // Base mainnet
+    this.client = createYoClient({ chainId });
   }
-  
-  // Set user context from wallet address
-  req.user = { 
-    id: walletAddress.toLowerCase(),
-    walletAddress: walletAddress.toLowerCase() 
-  };
-  next();
+
+  async getVaults(): Promise<VaultInfo[]> {
+    // Returns: yoUSD, yoETH, yoBTC, etc.
+    const vaultEntries = Object.entries(VAULTS);
+    
+    return Promise.all(
+      vaultEntries.map(async ([key, vault]) => {
+        const [state, snapshot] = await Promise.all([
+          this.client.getVaultState(vault.address),
+          this.client.getVaultSnapshot(vault.address),
+        ]);
+
+        return {
+          id: key,
+          name: state.name,
+          symbol: state.symbol,
+          address: vault.address,
+          apy: snapshot.apy,
+          tvl: snapshot.tvl,
+          riskScore: this.calculateRisk(key),
+        };
+      })
+    );
+  }
+
+  async deposit(vaultAddress: string, amount: bigint, userAddress: string) {
+    return this.client.deposit({
+      vault: vaultAddress as `0x${string}`,
+      amount,
+      recipient: userAddress as `0x${string}`,
+      slippageBps: 50,  // 0.5%
+    });
+  }
+
+  async redeem(vaultAddress: string, shares: bigint, userAddress: string) {
+    return this.client.redeem({
+      vault: vaultAddress as `0x${string}`,
+      shares,
+      recipient: userAddress as `0x${string}`,
+    });
+  }
+
+  async getUserPosition(vaultAddress: string, userAddress: string) {
+    return this.client.getUserPosition(vaultAddress, userAddress);
+  }
 }
+
+export const yoService = new YoSDKService();
 ```
-
-### API Usage
-
-```typescript
-// Frontend API call with wallet auth
-const response = await fetch('/api/goals', {
-  headers: {
-    'X-Wallet-Address': walletAddress,
-  },
-});
-```
-
-**Benefits:**
-- No JWT expiration issues
-- No session management
-- Stateless backend
-- Truly decentralized auth
 
 ---
 
@@ -536,60 +545,59 @@ const response = await fetch('/api/goals', {
 
 ```bash
 # .env.example
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
 
-# AI Models (choose one)
-OPENROUTER_API_KEY=...       # Recommended - access to multiple free models
-NVIDIA_API_KEY=...           # Alternative - direct NVIDIA API
+# Server
+PORT=3001
+NODE_ENV=development
 
-YO_SDK_API_KEY=...           # From blockchain agent
-PLAID_CLIENT_ID=...          # Optional for hackathon
-PLAID_SECRET=...
-# Note: No JWT_SECRET needed - we use wallet-only auth via X-Wallet-Address header
+# AI (OpenRouter - Free Models)
+OPENROUTER_API_KEY=sk-or-v1-...       # Get from https://openrouter.ai/keys
+
+# YO SDK
+YO_CHAIN_ID=8453                      # Base mainnet (8453) or Ethereum (1)
+USE_LIVE_SDK=false                    # Set true for production
+
+# Optional: Direct NVIDIA API (alternative to OpenRouter)
+# NVIDIA_API_KEY=nvapi-...
 ```
-
-**AI Model Recommendations:**
-
-| Provider | Model | Cost | Quality | Best For |
-|----------|-------|------|---------|----------|
-| **OpenRouter** | nvidia/llama-3.1-nemotron-70b | FREE | High | Default choice |
-| **OpenRouter** | meta-llama/llama-3.1-70b | FREE | High | Fallback |
-| **OpenRouter** | mistralai/mistral-7b | FREE | Medium | Lightweight |
-| **NVIDIA** | llama-3.1-nemotron-70b | FREE | High | Direct API |
-| OpenRouter | anthropic/claude-3.5-sonnet | Paid | Highest | Premium option |
 
 ---
 
 ## 📋 Coding Rules
 
-- **WEALTHCOACH:** prefix on all Vio Agent logic comments for easy grep.
-- Every route must have **try/catch** — never let blockchain errors surface as 500s.
-- **Cache vault data** in Redis (5 min TTL) — never hit YO SDK on every request.
-- All money values stored as **cents (integer)** in DB, convert to dollars at API boundary.
-- AI `reasoning` field is **user-facing** — write in plain English always.
+1. **VIO_AGENT:** prefix on all AI-related comments
+2. **Stateless:** Never assume data persists between requests
+3. **Wallet Auth:** Always check `req.user.walletAddress` from middleware
+4. **Error Handling:** Wrap blockchain calls in try/catch with user-friendly messages
+5. **No Database:** Use in-memory Maps only (or blockchain reads)
+6. **AI Fallback:** Always have fallback models if primary fails
 
 ---
 
-## 📅 10-Day Sprint
+## 📅 Sprint Plan
 
-| Hari | Deliverable |
-|---|---|
-| 1 | Project setup, Prisma schema, Express boilerplate, env config |
-| 2 | Auth (SIWE), User model, JWT middleware |
-| 3 | Goals CRUD API + vault allocation logic (allocateVaults) |
-| 4 | YO SDK service wrapper integration (consume blockchain agent's module) |
-| 5 | Vio Agent agent loop + decision engine (rule-based) |
-| 6 | OpenRouter/NVIDIA API chat integration (Vio Agent natural language - free models) |
-| 7 | Dashboard aggregation endpoints (net worth, yield, breakdown) |
-| 8 | Decision approval/dismiss endpoints + notification service |
-| 9 | Mock Plaid + Redis caching + rate limiting |
-| 10 | Integration testing, seed data for demo, bug fixes |
+| Day | Task |
+|-----|------|
+| 1 | Setup Express, middleware, folder structure |
+| 2 | Implement wallet-only auth, YO SDK service |
+| 3 | Create goals API (in-memory), vault allocation logic |
+| 4 | Implement Vio Agent decision engine |
+| 5 | Integrate OpenRouter API (chat, goal parsing) |
+| 6 | Setup cron jobs (15-min loop), decision storage |
+| 7 | Dashboard aggregation API |
+| 8 | Transactions API (deposit/redeem flows) |
+| 9 | AI chat endpoint, testing |
+| 10 | Integration, demo prep |
 
 ---
 
-## 🤝 Interfaces with Other Agents
+## 🤝 Interfaces
 
-- **Frontend Agent** — expose all endpoints listed in REST API section above
-- **Blockchain Agent** — import `yo-sdk` service; call `depositToGoal`, `redeemFromGoal`
-- **SC Agent** — call `batchDeposit` on WealthOSRouter contract via blockchain agent
+- **Frontend:** REST API with `X-Wallet-Address` header
+- **Blockchain:** YO Protocol SDK for vault interactions
+- **AI:** OpenRouter API (free NVIDIA/Meta models)
+- **Storage:** In-memory Maps (hackathon), eventually The Graph + IPFS
+
+---
+
+*This is a stateless, blockchain-native backend. No database, no sessions, pure decentralized architecture.*

@@ -1,12 +1,12 @@
 // ============================================================
-// WEALTHCOACH: YO SDK Client Wrapper
+// VIO_AGENT: YO SDK Client Wrapper
 // Wraps @yo-protocol/core with mock fallback for development
 // ============================================================
 
-import type { VaultInfo } from '@wealthos/shared';
+import type { VaultInfo } from '../../../../shared/types/index.js';
 import { MOCK_VAULTS } from './mock-data.js';
 
-// WEALTHCOACH: Environment flag — set USE_LIVE_SDK=true when real SDK is available
+// VIO_AGENT: Environment flag — set USE_LIVE_SDK=true when real SDK is available
 const USE_LIVE_SDK = process.env.USE_LIVE_SDK === 'true';
 
 interface VaultSnapshot {
@@ -72,7 +72,7 @@ export class YoSDKService {
                             logoUrl: `/assets/vaults/${key}.svg`,
                         });
                     } catch {
-                        // WEALTHCOACH: Skip vaults that fail to load — don't crash the whole list
+                        // VIO_AGENT: Skip vaults that fail to load — don't crash the whole list
                         console.warn(`Failed to fetch vault ${key}, skipping`);
                     }
                 }
@@ -111,7 +111,7 @@ export class YoSDKService {
                 });
                 return { hash: result.hash, shares: result.shares?.toString() || '0' };
             } catch (error) {
-                // WEALTHCOACH: Translate blockchain errors for users
+                // VIO_AGENT: Translate blockchain errors for users
                 throw new Error(
                     'Something went wrong with your deposit. We\'ll retry automatically.'
                 );
@@ -179,7 +179,7 @@ export class YoSDKService {
         };
     }
 
-    /** WEALTHCOACH: risk score heuristic based on vault type */
+    /** VIO_AGENT: risk score heuristic based on vault type */
     private calculateRiskScore(vaultKey: string): number {
         const riskMap: Record<string, number> = {
             yoUSD: 2,

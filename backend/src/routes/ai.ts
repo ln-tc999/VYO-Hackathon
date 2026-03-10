@@ -1,92 +1,125 @@
 // ============================================================
-// AI API — decision transparency log & approval flow
+// AI API — Vio Agent decision transparency log & approval flow
 // ============================================================
 
 import { Router } from 'express';
-import { getStore, getDemoUserId } from '../models/store.js';
-import { wealthCoach } from '../services/ai/wealth-coach.js';
-import { yoService } from '../services/yo-sdk/client.js';
+import { walletAuth, type AuthenticatedRequest } from '../middleware/auth.js';
+import { 
+  getUserDecisions, 
+  getPendingDecisions, 
+  approveDecision, 
+  rejectDecision,
+  runVioAgentForUser,
+} from '../services/ai/vioAgent.js';
 
 export const aiRouter = Router();
 
+// All AI routes require wallet auth
+aiRouter.use(walletAuth);
+
 // GET /api/ai/decisions — transparency log
-aiRouter.get('/decisions', (_req, res) => {
-    const store = getStore();
-    const userId = getDemoUserId();
-    const goals = Array.from(store.goals.values()).filter(g => g.userId === userId);
-    const goalIds = new Set(goals.map(g => g.id));
-
-    const decisions = Array.from(store.decisions.values())
-        .filter(d => goalIds.has(d.goalId))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    res.json({ success: true, data: decisions });
+aiRouter.get('/decisions', (req: AuthenticatedRequest, res) => {
+  const walletAddress = req.user!.walletAddress;
+  const decisions = getUserDecisions(walletAddress);
+  
+  res.json({ 
+    success: true, 
+    data: decisions.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ) 
+  });
 });
 
-// POST /api/ai/rebalance — trigger WealthCoach scan
-aiRouter.post('/rebalance', async (_req, res) => {
-    try {
-        const store = getStore();
-        const userId = getDemoUserId();
-        const goals = Array.from(store.goals.values()).filter(g => g.userId === userId);
-        const vaults = await yoService.getVaults();
+// GET /api/ai/decisions/pending — awaiting approval
+aiRouter.get('/decisions/pending', (req: AuthenticatedRequest, res) => {
+  const walletAddress = req.user!.walletAddress;
+  const decisions = getPendingDecisions(walletAddress);
+  
+  res.json({ success: true, data: decisions });
+});
 
-        const newDecisions = await wealthCoach.generateDecisions(goals, vaults);
+// POST /api/ai/rebalance — trigger Vio Agent scan
+aiRouter.post('/rebalance', async (req: AuthenticatedRequest, res) => {
+  try {
+    const walletAddress = req.user!.walletAddress;
+    const newDecisions = await runVioAgentForUser(walletAddress);
 
-        // Store new decisions
-        for (const decision of newDecisions) {
-            store.decisions.set(decision.id, decision);
-        }
-
-        res.json({ success: true, data: newDecisions });
-    } catch {
-        res.status(500).json({
-            success: false,
-            error: 'WealthCoach encountered an issue. No actions were taken.',
-        });
-    }
+    res.json({ success: true, data: newDecisions });
+  } catch {
+    res.status(500).json({
+      success: false,
+      error: 'Vio Agent encountered an issue. No actions were taken.',
+    });
+  }
 });
 
 // POST /api/ai/decisions/:id/approve
-aiRouter.post('/decisions/:id/approve', (req, res) => {
-    const store = getStore();
-    const decision = store.decisions.get(req.params.id);
+aiRouter.post('/decisions/:id/approve', (req: AuthenticatedRequest, res) => {
+  const walletAddress = req.user!.walletAddress;
+  const decision = approveDecision(req.params.id as string, walletAddress);
 
-    if (!decision) {
-        res.status(404).json({ success: false, error: 'Decision not found' });
-        return;
-    }
+  if (!decision) {
+    res.status(404).json({ success: false, error: 'Decision not found or already processed' });
+    return;
+  }
 
-    if (decision.status !== 'pending_approval') {
-        res.status(400).json({ success: false, error: 'This decision has already been processed.' });
-        return;
-    }
-
-    decision.status = 'approved';
-    store.decisions.set(decision.id, decision);
-
-    // WEALTHCOACH: In production, this would trigger the actual rebalance transaction
-    // For hackathon, we mark it as executed after approval
-    setTimeout(() => {
-        decision.status = 'executed';
-        store.decisions.set(decision.id, decision);
-    }, 2000);
-
-    res.json({ success: true, data: decision });
+  res.json({ success: true, data: decision });
 });
 
 // POST /api/ai/decisions/:id/reject
-aiRouter.post('/decisions/:id/reject', (req, res) => {
-    const store = getStore();
-    const decision = store.decisions.get(req.params.id);
+aiRouter.post('/decisions/:id/reject', (req: AuthenticatedRequest, res) => {
+  const walletAddress = req.user!.walletAddress;
+  const decision = rejectDecision(req.params.id as string, walletAddress);
 
-    if (!decision) {
-        res.status(404).json({ success: false, error: 'Decision not found' });
-        return;
+  if (!decision) {
+    res.status(404).json({ success: false, error: 'Decision not found or already processed' });
+    return;
+  }
+
+  res.json({ success: true, data: decision });
+});
+
+// POST /api/ai/chat — Chat with Vio Agent
+aiRouter.post('/chat', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { message, history = [] } = req.body;
+    const walletAddress = req.user!.walletAddress;
+    
+    // Import dynamically to avoid circular deps
+    const { chatWithVioAgentWithFallback } = await import('../services/ai/openRouterClient.js');
+    const { getUserGoals } = await import('../services/ai/vioAgent.js');
+    const { yoService } = await import('../services/yo-sdk/client.js');
+    
+    const goals = getUserGoals(walletAddress);
+    const vaults = await yoService.getVaults();
+    
+    // Calculate net worth
+    let netWorth = 0;
+    for (const goal of goals) {
+      netWorth += goal.currentAmount;
     }
+    
+    const userContext = {
+      walletAddress,
+      goals,
+      currentNetWorth: netWorth,
+      riskProfile: goals[0]?.riskProfile || 'moderate',
+    };
 
-    decision.status = 'rejected';
-    store.decisions.set(decision.id, decision);
+    const response = await chatWithVioAgentWithFallback(message, history, userContext);
 
-    res.json({ success: true, data: decision });
+    res.json({ 
+      success: true, 
+      data: { 
+        message: response,
+        timestamp: new Date().toISOString(),
+      } 
+    });
+  } catch (error) {
+    console.error('[AI Chat Error]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Vio Agent is temporarily unavailable. Please try again.',
+    });
+  }
 });

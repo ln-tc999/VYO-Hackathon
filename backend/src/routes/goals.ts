@@ -3,11 +3,13 @@
 // ============================================================
 
 import { Router } from 'express';
-import { v4 as uuid } from 'uuid';
 import { getStore, getDemoUserId } from '../models/store.js';
 import { getStrategyForProfile, getRecommendedProfile } from '../services/ai/risk-profiles.js';
 import type { Goal, VaultAllocation } from '../../../shared/types/index.js';
 import { MOCK_VAULTS } from '../services/yo-sdk/mock-data.js';
+
+// Simple ID generator
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export const goalsRouter = Router();
 
@@ -76,7 +78,7 @@ goalsRouter.post('/', (req, res) => {
     });
 
     const goal: Goal = {
-        id: uuid(),
+        id: generateId(),
         userId,
         name: goalName,
         targetAmount: goalTarget,
