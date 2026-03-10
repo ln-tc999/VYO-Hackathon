@@ -1,0 +1,41 @@
+# Foundry
+out/
+cache/
+lib/
+
+# Forge
+broadcast/
+
+# Soldeer
+dependencies/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Private keys (NEVER commit!)
+*.private.key
+*.secret
+
+# Coverage
+coverage/
+lcov.info
+
+# Gas snapshots
+.gas-snapshot
+
+# Build artifacts
+*.abi
+*.bin
