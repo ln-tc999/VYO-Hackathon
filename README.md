@@ -1,8 +1,8 @@
-# WealthOS 🤖💰
+# Vyo Apps 🤖💰
 
-> AI-Powered DeFi Yield Optimizer — Set your goals once. WealthOS handles the rest.
+> AI-Powered DeFi Yield Optimizer — Set your goals once. Vyo Apps handles the rest.
 
-WealthOS is an intelligent personal financial operating system that unifies traditional savings, DeFi yield, and AI automation in a single dashboard.
+Vyo Apps is an intelligent personal financial operating system that unifies traditional savings, DeFi yield, and AI automation in a single dashboard.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Stack](https://img.shields.io/badge/stack-Astro%20%2B%20Express%20%2B%20YO%20SDK-purple)
@@ -12,7 +12,7 @@ WealthOS is an intelligent personal financial operating system that unifies trad
 ## ✨ Features
 
 - **🎯 Goal-Based Savings** — Create savings goals using natural language (e.g., "Save $15,000 for a new car by December 2026")
-- **🤖 WealthCoach AI** — Autonomous yield optimizer that monitors APY changes and suggests rebalancing
+- **🤖 Vio Agent AI** — Autonomous yield optimizer that monitors APY changes and suggests rebalancing
 - **📊 Unified Dashboard** — View your total net worth across TradFi banks and DeFi vaults
 - **🔄 Multi-Vault Deposits** — Automatically split deposits across multiple YO Protocol vaults based on your risk profile
 - **📝 Decision Transparency** — Every AI action is logged with plain-English explanations
@@ -99,12 +99,12 @@ VYO-Hackathon/
 │       ├── routes/            # API endpoints
 │       │   ├── goals.ts       # Goal CRUD + NLP
 │       │   ├── transactions.ts # Deposit/Redeem
-│       │   ├── ai.ts          # WealthCoach decisions
+│       │   ├── ai.ts          # Vio Agent decisions
 │       │   ├── vaults.ts      # Vault listings
 │       │   └── dashboard.ts   # Aggregated data
 │       ├── services/
 │       │   ├── yo-sdk/        # YO Protocol integration
-│       │   └── ai/            # WealthCoach logic
+│       │   └── ai/            # Vio Agent logic
 │       └── models/            # In-memory store
 ├── shared/
 │   └── types/                 # Shared TypeScript types
@@ -123,7 +123,7 @@ VYO-Hackathon/
 - `POST /api/transactions/deposit` — Deposit to goal (multi-vault)
 - `POST /api/transactions/redeem` — Withdraw from vault
 
-### AI (WealthCoach)
+### AI (Vio Agent)
 - `GET /api/ai/decisions` — Decision transparency log
 - `POST /api/ai/rebalance` — Trigger AI scan
 - `POST /api/ai/decisions/:id/approve` — Approve recommendation
@@ -134,9 +134,9 @@ VYO-Hackathon/
 
 ---
 
-## 🤖 WealthCoach AI
+## 🤖 Vio Agent AI
 
-WealthCoach runs autonomously in the background:
+Vio Agent runs autonomously in the background:
 
 1. **Opportunity Scan** — Daily check for better APY rates
 2. **Risk Scan** — Continuous monitoring of vault risk scores
