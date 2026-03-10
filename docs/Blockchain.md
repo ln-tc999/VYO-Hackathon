@@ -274,7 +274,7 @@ contract WealthOSRouter is Ownable, ReentrancyGuard {
     }
 
     // ─────────────────────────────────────
-    // AGENT REBALANCE: Vera executes autonomously
+    // AGENT REBALANCE: Vio Agent executes autonomously
     // Agent has scoped permissions — not full custody
     // ─────────────────────────────────────
     function agentRebalance(

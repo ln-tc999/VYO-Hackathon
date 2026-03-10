@@ -2,7 +2,7 @@
 
 > **Role:** Frontend + Design Lead
 > **Stack:** Astro, TailwindCSS, WalletConnect, TypeScript
-> **AI Agent Name:** Vera (WealthCoach UI persona)
+> **AI Agent Name:** Vio Agent (WealthCoach UI persona)
 
 ---
 
@@ -36,7 +36,7 @@ frontend/
 │   │   │   ├── vaults/
 │   │   │   │   └── index.astro  # Vault browser
 │   │   │   └── ai/
-│   │   │       └── index.astro  # Vera AI chat + decision log
+│   │   │       └── index.astro  # Vio Agent AI chat + decision log
 │   │   └── settings/
 │   │       └── index.astro      # Profile, risk, connections
 │   ├── components/
@@ -56,7 +56,7 @@ frontend/
 │   │   ├── ai/
 │   │   │   ├── RebalanceModal.tsx   # Approve/Dismiss rebalance
 │   │   │   ├── DecisionLog.tsx      # All AI actions + reasoning
-│   │   │   ├── VeraChat.tsx         # Natural language AI chat
+│   │   │   ├── Vio AgentChat.tsx         # Natural language AI chat
 │   │   │   └── InsightCard.tsx      # Dashboard AI tip card
 │   │   ├── dashboard/
 │   │   │   ├── NetWorthCard.tsx     # Total balance hero number
@@ -133,7 +133,7 @@ Layout priority — top to bottom:
 │  👋 Good morning, Sarah         │
 │  Net Worth: $12,450.00  ↑2.3%  │  ← HERO NUMBER (biggest element)
 ├─────────────────────────────────┤
-│  🤖 Vera: "You're on track!    │  ← AI insight card (dismissible)
+│  🤖 Vio Agent: "You're on track!    │  ← AI insight card (dismissible)
 │  Deposit $50 more to finish    │
 │  1 month early."               │
 ├─────────────────────────────────┤
@@ -155,7 +155,7 @@ Layout priority — top to bottom:
 ```
 Step 1: Natural language input
   "Describe your goal..."
-  → Parse with Vera AI → Auto-fill form fields
+  → Parse with Vio Agent AI → Auto-fill form fields
 
 Step 2: Confirm parameters
   Target: $15,000
@@ -176,7 +176,7 @@ Step 4: Fund it
 ### 3. Rebalance Approval Modal
 ```
 ┌──────────────────────────────────┐
-│  🤖 Vera suggests a rebalance    │
+│  🤖 Vio Agent suggests a rebalance    │
 │                                  │
 │  FROM: YO Conservative Vault    │
 │        $400 @ 4.5% APY          │
@@ -214,13 +214,13 @@ export const depositToGoal = (goalId: string, amount: number) =>
 // Vaults
 export const getVaults = () => fetch(`${BASE}/vaults`).then(r => r.json());
 
-// AI / Vera
+// AI / Vio Agent
 export const getPendingDecisions = () => fetch(`${BASE}/ai/decisions/pending`).then(r => r.json());
 export const approveDecision = (id: string) =>
   fetch(`${BASE}/ai/decisions/${id}/approve`, { method: 'POST' }).then(r => r.json());
 export const dismissDecision = (id: string) =>
   fetch(`${BASE}/ai/decisions/${id}/dismiss`, { method: 'POST' }).then(r => r.json());
-export const chatWithVera = (message: string, history: Message[]) =>
+export const chatWithVio Agent = (message: string, history: Message[]) =>
   fetch(`${BASE}/ai/chat`, { method: 'POST', body: JSON.stringify({ message, history }) }).then(r => r.json());
 
 // Dashboard
@@ -243,7 +243,7 @@ export const isDepositing = atom<boolean>(false);
 
 // stores/aiStore.ts
 export const pendingDecisions = atom<AIDecision[]>([]);
-export const isVeraThinking = atom<boolean>(false);
+export const isVio AgentThinking = atom<boolean>(false);
 ```
 
 ---
@@ -265,12 +265,12 @@ export const isVeraThinking = atom<boolean>(false);
 |---|---|
 | 1 | Design system setup, global CSS, shared components (Button, Badge, ProgressBar) |
 | 2 | Onboarding flow: Welcome → Connect → Risk Quiz screens |
-| 3 | Goal Creation Wizard with natural language input + Vera parse |
+| 3 | Goal Creation Wizard with natural language input + Vio Agent parse |
 | 4 | Dashboard layout: NetWorth hero, GoalCards, YieldSummary |
 | 5 | Vault browser + VaultCard + VaultComparison |
 | 6 | RebalanceModal + DecisionLog + InsightCard |
 | 7 | Connect all screens to backend API (lib/api.ts) |
-| 8 | VeraChat component + AI transparency log screen |
+| 8 | Vio AgentChat component + AI transparency log screen |
 | 9 | Milestone animations, polish, empty states, error states |
 | 10 | Demo prep: seed data, rehearsal, final bug fixes |
 

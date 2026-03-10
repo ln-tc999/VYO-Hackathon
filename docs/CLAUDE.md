@@ -1,4 +1,4 @@
-# WealthOS — Agent Context & Instructions
+# Vyo Apps — Agent Context & Instructions
 
 > **Version:** 1.0 | **Hackathon:** YO SDK Hackathon | **Stack:** Astro + Node.js/Express + YO SDK
 
@@ -6,13 +6,13 @@
 
 ## 🧠 Project Identity
 
-You are an AI coding agent working on **WealthOS** — an intelligent personal financial operating system that unifies traditional savings, DeFi yield, and AI automation in a single dashboard.
+You are an AI coding agent working on **Vyo Apps** — an intelligent personal financial operating system that unifies traditional savings, DeFi yield, and AI automation in a single dashboard.
 
-**Core tagline:** *"Set your goals once. WealthOS handles the rest."*
+**Core tagline:** *"Set your goals once. Vyo Apps handles the rest."*
 
-WealthOS has three layers:
+Vyo Apps has three layers:
 1. **Consumer Savings App** — Goal-based savings with natural language input
-2. **AI Agent (WealthCoach)** — 24/7 yield optimizer and risk monitor
+2. **AI Agent (Vio Agent)** — 24/7 yield optimizer and risk monitor
 3. **Portfolio Dashboard** — Unified TradFi + DeFi net worth view
 
 The **YO SDK** is the core yield engine. Every deposit/withdrawal flows through YO Protocol vaults.
@@ -37,14 +37,14 @@ The **YO SDK** is the core yield engine. Every deposit/withdrawal flows through 
 ## 📁 Project Structure
 
 ```
-wealthos/
+vyo-apps/
 ├── frontend/                  # Astro web app
 │   ├── src/
 │   │   ├── pages/             # Route pages (dashboard, goals, vaults, settings)
 │   │   ├── components/        # UI components
 │   │   │   ├── goals/         # Goal cards, wizard, progress bars
 │   │   │   ├── vaults/        # Vault comparison, allocation heatmap
-│   │   │   ├── ai/            # WealthCoach chat, decision log, rebalance modal
+│   │   │   ├── ai/            # Vio Agent chat, decision log, rebalance modal
 │   │   │   └── dashboard/     # Net worth, yield summary, charts
 │   │   └── layouts/
 ├── backend/
@@ -52,7 +52,7 @@ wealthos/
 │   │   ├── routes/            # Express routes
 │   │   ├── services/
 │   │   │   ├── yo-sdk/        # YO SDK wrappers (deposit, redeem, getVaults, etc.)
-│   │   │   ├── ai/            # WealthCoach logic, rebalancing engine
+│   │   │   ├── ai/            # Vio Agent logic, rebalancing engine
 │   │   │   ├── plaid/         # Bank connection
 │   │   │   └── analytics/     # Yield tracker, goal forecaster
 │   │   ├── models/            # DB schemas (User, Goal, Vault, Transaction)
@@ -119,7 +119,7 @@ interface AIDecision {
 
 ## 🔌 YO SDK Integration
 
-These are the **6 core SDK functions** used in WealthOS. Always wrap in try/catch and handle errors gracefully.
+These are the **6 core SDK functions** used in Vyo Apps. Always wrap in try/catch and handle errors gracefully.
 
 ```typescript
 // 1. Fetch all available vaults
@@ -162,7 +162,7 @@ async function depositToGoal(goalId: string, totalAmount: number) {
 
 ---
 
-## 🤖 WealthCoach AI Logic
+## 🤖 Vio Agent AI Logic
 
 ### Rebalancing Decision Tree
 Run daily. Only rebalance if net benefit is positive after gas:
@@ -263,14 +263,14 @@ These flows MUST work end-to-end for the demo:
 1. YO SDK service wrapper (`/backend/src/services/yo-sdk/`)
 2. Goal creation API + multi-vault deposit flow
 3. Dashboard net worth aggregation view
-4. WealthCoach rebalance suggestion modal (UI + approval flow)
+4. Vio Agent rebalance suggestion modal (UI + approval flow)
 5. Onboarding wizard (goal type → risk quiz → first deposit)
 
 ---
 
 ## 🤖 Autonomous AI Agent Architecture
 
-WealthCoach runs an autonomous **Sense → Plan → Act** loop in the background.
+Vio Agent runs an autonomous **Sense → Plan → Act** loop in the background.
 
 ### Two Modes of Autonomy
 
@@ -283,7 +283,7 @@ WealthCoach runs an autonomous **Sense → Plan → Act** loop in the background
 
 ```typescript
 // Run via cron job every 15 minutes
-async function wealthCoachLoop(userId: string) {
+async function vioAgentLoop(userId: string) {
   const state = await gatherState(userId);      // balances, APYs, goals, gas price
   const decisions = await planActions(state);   // rule engine or LLM call
 
@@ -307,7 +307,7 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
   body: JSON.stringify({
     model: "claude-sonnet-4-20250514",
     max_tokens: 1000,
-    system: `You are WealthCoach, an autonomous DeFi portfolio manager.
+    system: `You are Vio Agent, an autonomous DeFi portfolio manager.
 Given the user's goals, risk profile, and current market state,
 decide what actions to take. Always return JSON only:
 { actions: [], requiresApproval: boolean, reasoning: string }`,
@@ -326,14 +326,14 @@ decide what actions to take. Always return JSON only:
 
 ## 🔒 Zero-Knowledge (ZK) Strategy
 
-ZK lets WealthOS prove things are true **without revealing underlying data.** Key for user privacy.
+ZK lets Vyo Apps prove things are true **without revealing underlying data.** Key for user privacy.
 
-### Three Use Cases in WealthOS
+### Three Use Cases in Vyo Apps
 
 | Use Case | What's Proved | What Stays Private |
 |---|---|---|
 | **Goal progress proof** | "I have enough for my down payment" | Exact balance |
-| **Private rebalancing** | "User interacted with WealthOS" | Which vaults, which amounts |
+| **Private rebalancing** | "User interacted with Vyo Apps" | Which vaults, which amounts |
 | **KYC without data exposure** | "User is not sanctioned" | Identity documents |
 
 ### ZK Stack Decision
@@ -375,7 +375,7 @@ async function proveGoalAchieved(balance: number, target: number) {
 ```
 HACKATHON (now):          PRODUCTION (post-hackathon):
 ─────────────────         ──────────────────────────
-✅ Pure YO SDK calls      ✅ Deploy WealthOSRouter.sol
+✅ Pure YO SDK calls      ✅ Deploy Vyo AppsRouter.sol
 ✅ Backend cron = "AI"    ✅ Agent permission system
 ✅ Less attack surface    ✅ Batch deposits (1 tx = 1 gas)
 ✅ Ship faster            ✅ On-chain goal escrow
@@ -393,13 +393,13 @@ HACKATHON (now):          PRODUCTION (post-hackathon):
 | **ZK proof verifier** | Verifier must live on-chain |
 | **Non-custodial AI** | Agent has scoped permissions, not full custody |
 
-### WealthOSRouter.sol (Production Reference)
+### Vyo AppsRouter.sol (Production Reference)
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract WealthOSRouter {
+contract Vyo AppsRouter {
     // Agent permissions — limited spend, not full custody
     mapping(address => bool) public approvedAgents;
     mapping(address => uint256) public agentSpendLimit;
@@ -448,10 +448,10 @@ contract WealthOSRouter {
 ### Updated Project Structure (with contracts)
 
 ```
-wealthos/
+vyo-apps/
 ├── contracts/                 # Smart contracts (post-hackathon)
 │   ├── src/
-│   │   └── WealthOSRouter.sol
+│   │   └── Vyo AppsRouter.sol
 │   ├── test/
 │   └── foundry.toml           # Use Foundry for testing
 ├── frontend/
@@ -467,7 +467,7 @@ wealthos/
 HACKATHON (now)                POST-HACKATHON
 ───────────────                ─────────────────────────────
 Week 1-2:                      Phase 2: Smart Contract
-  ✅ YO SDK integration          🔲 Deploy WealthOSRouter.sol
+  ✅ YO SDK integration          🔲 Deploy Vyo AppsRouter.sol
   ✅ Agent loop (cron + Claude)  🔲 Batch deposit (gas savings)
   ✅ Approval-gated rebalance    🔲 Agent permission system
 
@@ -479,4 +479,4 @@ Week 3:                        Phase 3: ZK Privacy
 
 ---
 
-*This file is the source of truth for all agent/AI coding sessions on WealthOS. Update it when architecture decisions change.*
+*This file is the source of truth for all agent/AI coding sessions on Vyo Apps. Update it when architecture decisions change.*

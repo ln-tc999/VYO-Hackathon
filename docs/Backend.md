@@ -1,16 +1,16 @@
 # Vyo Apps — Backend Agent Instructions
 
 > **Role:** Backend + AI Lead
-> **Stack:** Node.js, Express, GraphQL, PostgreSQL, Redis, Claude API
-> **AI Persona:** Vera (WealthCoach engine)
+> **Stack:** Node.js, Express, GraphQL, PostgreSQL, Redis, OpenRouter API or NVIDIA API
+> **AI Persona:** Vio Agent (Vio Agent engine)
 
 ---
 
 ## 🎯 Your Mission
 
-Build the **brain of Vyo Apps** — the API layer, WealthCoach autonomous agent loop, and all business logic. You own everything between the frontend and the blockchain.
+Build the **brain of Vyo Apps** — the API layer, Vio Agent autonomous agent loop, and all business logic. You own everything between the frontend and the blockchain.
 
-**Core principle:** Every action Vera takes must be logged with human-readable reasoning. No black box decisions.
+**Core principle:** Every action Vio Agent takes must be logged with human-readable reasoning. No black box decisions.
 
 ---
 
@@ -31,9 +31,9 @@ backend/
 │   │   │   ├── index.ts            # YO SDK wrapper (consume from blockchain agent)
 │   │   │   └── types.ts
 │   │   ├── ai/
-│   │   │   ├── veraAgent.ts        # Main autonomous loop
+│   │   │   ├── vioAgent.ts        # Main autonomous loop
 │   │   │   ├── decisionEngine.ts   # Rule-based decision tree
-│   │   │   ├── claudeClient.ts     # Claude API integration
+│   │   │   ├── openRouterClient.ts     # OpenRouter API integration
 │   │   │   ├── riskScorer.ts       # Risk profile calculator
 │   │   │   └── goalForecaster.ts   # Monte Carlo / projection
 │   │   ├── plaid/
@@ -47,7 +47,7 @@ backend/
 │   │   ├── AIDecision.ts
 │   │   └── Transaction.ts
 │   ├── jobs/
-│   │   └── veraLoop.ts             # Cron job runner
+│   │   └── vioLoop.ts             # Cron job runner
 │   ├── middleware/
 │   │   ├── auth.ts                 # JWT / SIWE verify
 │   │   └── errorHandler.ts
@@ -166,13 +166,13 @@ GET    /api/dashboard/yield          → Yield earned this month/year
 GET    /api/dashboard/breakdown      → TradFi vs DeFi split
 ```
 
-### AI / Vera
+### AI / Vio Agent
 ```
 GET    /api/ai/decisions             → All decisions (paginated)
 GET    /api/ai/decisions/pending     → Awaiting user approval
 POST   /api/ai/decisions/:id/approve → User approves → execute
 POST   /api/ai/decisions/:id/dismiss → User dismisses
-POST   /api/ai/chat                  → Chat with Vera (natural language)
+POST   /api/ai/chat                  → Chat with Vio Agent (natural language)
 ```
 
 ### Auth
@@ -183,25 +183,25 @@ POST   /api/auth/verify              → Verify signature → JWT
 
 ---
 
-## 🤖 Vera Agent Loop
+## 🤖 Vio Agent Agent Loop
 
 ### Main Loop (runs every 15 minutes via cron)
 
 ```typescript
-// jobs/veraLoop.ts
+// jobs/vioLoop.ts
 import cron from 'node-cron';
-import { runVeraForAllUsers } from '../services/ai/veraAgent';
+import { runVio AgentForAllUsers } from '../services/ai/vioAgent';
 
 // Every 15 minutes
 cron.schedule('*/15 * * * *', async () => {
   console.log('[VERA] Starting agent loop...');
-  await runVeraForAllUsers();
+  await runVio AgentForAllUsers();
 });
 ```
 
 ```typescript
-// services/ai/veraAgent.ts
-export async function runVeraForUser(userId: string) {
+// services/ai/vioAgent.ts
+export async function runVio AgentForUser(userId: string) {
   const state = await gatherUserState(userId);
   const decisions = await decisionEngine(state);
 
@@ -272,11 +272,11 @@ export async function decisionEngine(state: UserState): Promise<Decision[]> {
 }
 ```
 
-### Claude API Integration (Vera Chat)
+### Claude API Integration (Vio Agent Chat)
 
 ```typescript
 // services/ai/claudeClient.ts
-export async function chatWithVera(
+export async function chatWithVio Agent(
   message: string,
   history: Message[],
   userContext: UserContext
@@ -287,7 +287,7 @@ export async function chatWithVera(
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
-      system: `You are Vera, the AI financial coach for Vyo Apps.
+      system: `You are Vio Agent, the AI financial coach for Vyo Apps.
 You help users manage their savings goals and DeFi yield optimization.
 User context: ${JSON.stringify(userContext)}
 
@@ -313,7 +313,7 @@ Rules:
 
 ## 🧠 AI Goal Allocation Logic
 
-When a goal is created, Vera auto-assigns vault splits:
+When a goal is created, Vio Agent auto-assigns vault splits:
 
 ```typescript
 // services/ai/riskScorer.ts
@@ -384,7 +384,7 @@ router.post('/verify', async (req, res) => {
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 JWT_SECRET=...
-ANTHROPIC_API_KEY=...        # For Vera (Claude API)
+ANTHROPIC_API_KEY=...        # For Vio Agent (Claude API)
 YO_SDK_API_KEY=...           # From blockchain agent
 PLAID_CLIENT_ID=...          # Optional for hackathon
 PLAID_SECRET=...
@@ -394,7 +394,7 @@ PLAID_SECRET=...
 
 ## 📋 Coding Rules
 
-- **WEALTHCOACH:** prefix on all Vera logic comments for easy grep.
+- **WEALTHCOACH:** prefix on all Vio Agent logic comments for easy grep.
 - Every route must have **try/catch** — never let blockchain errors surface as 500s.
 - **Cache vault data** in Redis (5 min TTL) — never hit YO SDK on every request.
 - All money values stored as **cents (integer)** in DB, convert to dollars at API boundary.
@@ -410,8 +410,8 @@ PLAID_SECRET=...
 | 2 | Auth (SIWE), User model, JWT middleware |
 | 3 | Goals CRUD API + vault allocation logic (allocateVaults) |
 | 4 | YO SDK service wrapper integration (consume blockchain agent's module) |
-| 5 | Vera agent loop + decision engine (rule-based) |
-| 6 | Claude API chat integration (Vera natural language) |
+| 5 | Vio Agent agent loop + decision engine (rule-based) |
+| 6 | Claude API chat integration (Vio Agent natural language) |
 | 7 | Dashboard aggregation endpoints (net worth, yield, breakdown) |
 | 8 | Decision approval/dismiss endpoints + notification service |
 | 9 | Mock Plaid + Redis caching + rate limiting |
