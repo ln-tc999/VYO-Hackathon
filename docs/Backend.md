@@ -527,6 +527,29 @@ export async function chatWithFallback(
 └─────────────────┘      └──────────────────┘
 ```
 
+### 💰 Understanding YO Yield
+
+**Bagaimana Yield Bekerja:**
+
+```
+User Deposit 100 USDC
+        ↓
+   Dapat 98 yoUSD (shares)
+        ↓
+   Shares appreciate over time
+        ↓
+   Redeem: 98 shares → 105 USDC
+                 ↑
+           Yield earned!
+```
+
+**Key Concepts:**
+- **ERC-4626 Standard** - Shares represent vault ownership
+- **Exchange Rate** - Naik terus (shares:assets ratio)
+- **Yield Sources** - Aave, Compound, Morpho (auto-rebalanced)
+- **APY** - Varies: yoUSD (4-7%), yoETH (3-8%), yoBTC (2-5%)
+- **Fees** - Currently 0%
+
 ### Implementation
 
 ```typescript
@@ -554,7 +577,7 @@ export class YoSDKService {
   }
   
   /**
-   * READ: Real vault snapshot
+   * READ: Real vault snapshot (APY, TVL)
    */
   async getVaultSnapshot(vaultAddress: string) {
     const response = await fetch(
@@ -564,9 +587,20 @@ export class YoSDKService {
   }
 
   /**
+   * READ: User position (for yield calculation)
+   */
+  async getUserPosition(vaultAddress: string, userAddress: string) {
+    if (IS_LIVE_MODE) {
+      const { createYoClient } = await import('@yo-protocol/core');
+      const client = createYoClient({ chainId: 8453 });
+      return client.getUserPosition(vaultAddress, userAddress);
+    }
+    // Mock
+    return { shares: 100, assets: 102 }; // 2% yield simulated
+  }
+
+  /**
    * WRITE: Switchable based on mode
-   * Dev: Mock (no crypto needed)
-   * Live: Real on-chain transaction
    */
   async deposit(vaultAddress: string, amount: number, userAddress: string) {
     if (IS_LIVE_MODE) {
@@ -582,7 +616,7 @@ export class YoSDKService {
       });
     }
     
-    // MOCK (Development)
+    // MOCK
     return {
       hash: '0x...',
       shares: (amount * 0.98).toString(),
@@ -608,25 +642,184 @@ export class YoSDKService {
     // MOCK
     return {
       hash: '0x...',
-      assets: (shares * 1.02).toString(),
+      assets: (shares * 1.02).toString(), // Includes yield
       status: 'confirmed',
     };
-  }
-  
-  /**
-   * USER DATA: Mock in dev, Real in production
-   */
-  async getUserPosition(vaultAddress: string, userAddress: string) {
-    if (IS_LIVE_MODE) {
-      // Real blockchain query
-      return this.client.getUserPosition(vaultAddress, userAddress);
-    }
-    // Mock data for development
-    return { shares: 100, assets: 102 };
   }
 }
 
 export const yoService = new YoSDKService();
+```
+
+### Yield API Endpoints
+
+```typescript
+// routes/yield.ts
+
+import { Router } from 'express';
+import { yieldTracker } from '../services/yield-tracker.js';
+
+export const yieldRouter = Router();
+
+// GET /api/yield/total - Total yield across all vaults
+yieldRouter.get('/total', async (req, res) => {
+    const { user } = req.query;
+    const data = await yieldTracker.getUserTotalYield(user as string);
+    res.json({ success: true, data });
+});
+
+// GET /api/yield/vault/:vaultId - Yield for specific vault
+yieldRouter.get('/vault/:vaultId', async (req, res) => {
+    const { user } = req.query;
+    const { vaultId } = req.params;
+    const data = await yieldTracker.getUserVaultYield(user as string, vaultId);
+    res.json({ success: true, data });
+});
+
+// GET /api/yield/history - Historical yield data
+yieldRouter.get('/history', async (req, res) => {
+    const { user, vault, days = 30 } = req.query;
+    const data = await yieldTracker.getYieldHistory(
+        user as string,
+        vault as string,
+        parseInt(days as string)
+    );
+    res.json({ success: true, data });
+});
+
+// GET /api/yield/optimize - Vio Agent recommendations
+yieldRouter.get('/optimize', async (req, res) => {
+    const { user, amount, risk } = req.query;
+    const strategy = await yieldOptimizer.compareStrategies(
+        parseFloat(amount as string),
+        risk as 'conservative' | 'moderate' | 'aggressive'
+    );
+    res.json({ success: true, data: strategy });
+});
+```
+
+### Yield Tracker Service
+
+```typescript
+// services/yield-tracker.ts
+
+interface YieldData {
+    vaultId: string;
+    currentApy: number;
+    realizedYield: number;
+    projectedYield: number;
+    totalDeposited: number;
+    currentValue: number;
+    profit: number;
+}
+
+export class YieldTracker {
+    
+    async getUserVaultYield(
+        userAddress: string,
+        vaultAddress: string
+    ): Promise<YieldData> {
+        // 1. Get current position
+        const position = await yoService.getUserPosition(vaultAddress, userAddress);
+        
+        // 2. Get transaction history
+        const history = await this.getUserTransactions(userAddress, vaultAddress);
+        
+        // 3. Calculate deposited vs current
+        const totalDeposited = history
+            .filter(tx => tx.type === 'deposit')
+            .reduce((sum, tx) => sum + tx.amount, 0);
+        
+        const totalWithdrawn = history
+            .filter(tx => tx.type === 'redeem')
+            .reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // 4. Calculate yield
+        const netDeposited = totalDeposited - totalWithdrawn;
+        const currentValue = position.assets;
+        const profit = currentValue - netDeposited;
+        
+        // 5. Get current APY
+        const vault = await yoService.getVaultDetails(vaultAddress);
+        
+        return {
+            vaultId: vault.id,
+            currentApy: vault.apy,
+            realizedYield: profit,
+            projectedYield: currentValue * (vault.apy / 100),
+            totalDeposited,
+            currentValue,
+            profit,
+        };
+    }
+    
+    async getUserTotalYield(userAddress: string) {
+        const vaults = await yoService.getVaults();
+        const userVaults: YieldData[] = [];
+        
+        for (const vault of vaults) {
+            const position = await yoService.getUserPosition(vault.address, userAddress);
+            if (position.shares > 0) {
+                const yieldData = await this.getUserVaultYield(userAddress, vault.address);
+                userVaults.push(yieldData);
+            }
+        }
+        
+        const totalDeposited = userVaults.reduce((sum, v) => sum + v.totalDeposited, 0);
+        const currentValue = userVaults.reduce((sum, v) => sum + v.currentValue, 0);
+        const totalProfit = currentValue - totalDeposited;
+        const avgApy = userVaults.length > 0 
+            ? userVaults.reduce((sum, v) => sum + v.currentApy, 0) / userVaults.length 
+            : 0;
+        
+        return {
+            totalDeposited,
+            currentValue,
+            totalProfit,
+            avgApy,
+            vaults: userVaults,
+        };
+    }
+}
+```
+
+### Vio Agent: Yield Optimization
+
+```typescript
+// services/ai/decisionEngine.ts
+
+export async function scanForBetterYield(
+    goal: Goal,
+    state: UserState
+): Promise<Decision | null> {
+    
+    const currentVault = goal.vaultAllocations[0];
+    const currentApy = getVaultApy(currentVault.vaultId, state.vaults);
+    
+    // Find vaults with better APY
+    const betterVaults = state.vaults.filter(v => 
+        v.riskScore <= getCurrentRisk(goal) + 1 &&
+        v.apy > currentApy + 1.5 // At least 1.5% better
+    );
+    
+    if (betterVaults.length === 0) return null;
+    
+    const bestVault = betterVaults.reduce((best, v) => 
+        v.apy > best.apy ? v : best
+    );
+    
+    const apyDiff = bestVault.apy - currentApy;
+    const annualGain = (goal.currentAmount * apyDiff) / 100;
+    
+    return {
+        type: 'REBALANCE',
+        goalId: goal.id,
+        action: `Move $${goal.currentAmount.toFixed(2)} to ${bestVault.name}`,
+        reasoning: `${bestVault.name} offers ${apyDiff.toFixed(2)}% higher APY (${bestVault.apy}% vs ${currentApy}%). Estimated annual gain: $${annualGain.toFixed(2)}.`,
+        expectedGain: annualGain,
+        requiresApproval: goal.currentAmount > 500,
+    };
+}
 ```
 
 ### Switching Modes
@@ -640,19 +833,6 @@ npm run dev
 DEV_MODE=live
 npm run dev
 ```
-
-### Demo Flow
-
-1. **Development:**
-   - UI works with mock data
-   - No wallet funding needed
-   - Instant "transactions"
-
-2. **Demo Day:**
-   - Set `DEV_MODE=live`
-   - Fund wallet with $5-10 on Base
-   - Execute real $1 deposit to yoUSD
-   - Show tx on BaseScan
 
 ---
 
