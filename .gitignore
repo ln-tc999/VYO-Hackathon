@@ -8,6 +8,9 @@ build/
 out/
 .astro/
 
+# Turborepo
+.turbo/
+
 # Environment
 .env
 .env.local
@@ -46,3 +49,8 @@ backend/build/
 # Frontend
 frontend/dist/
 frontend/.astro/
+
+# Misc
+.github/
+.qwen/
+openspec/
