@@ -1,0 +1,13 @@
+{
+    "name": "@wealthos/contracts",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build": "forge build",
+        "test": "forge test",
+        "clean": "forge clean",
+        "deploy": "forge script",
+        "lint": "forge fmt --check",
+        "fmt": "forge fmt"
+    }
+}

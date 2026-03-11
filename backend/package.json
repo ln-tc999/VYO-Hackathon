@@ -1,14 +1,17 @@
 {
-    "name": "@vyo/backend",
+    "name": "@wealthos/backend",
     "version": "1.0.0",
     "private": true,
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "build": "tsc -b",
-        "start": "node dist/index.js"
+        "start": "node dist/index.js",
+        "type-check": "tsc --noEmit",
+        "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
     },
     "dependencies": {
+        "@wealthos/shared": "workspace:*",
         "@types/uuid": "^10.0.0",
         "@yo-protocol/core": "^1.0.9",
         "cors": "^2.8.5",

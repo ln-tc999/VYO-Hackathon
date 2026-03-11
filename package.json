@@ -1,14 +1,25 @@
 {
-    "name": "wealthos",
+    "name": "vyo",
     "version": "1.0.0",
     "private": true,
     "scripts": {
-        "dev": "pnpm -r --parallel run dev",
-        "dev:backend": "pnpm --filter @wealthos/backend dev",
-        "dev:frontend": "pnpm --filter @wealthos/frontend dev",
-        "build": "pnpm -r run build"
+        "dev": "turbo run dev",
+        "dev:backend": "turbo run dev --filter=@wealthos/backend",
+        "dev:frontend": "turbo run dev --filter=@wealthos/frontend",
+        "build": "turbo run build",
+        "build:backend": "turbo run build --filter=@wealthos/backend",
+        "build:frontend": "turbo run build --filter=@wealthos/frontend",
+        "build:contracts": "turbo run build --filter=@wealthos/contracts",
+        "start": "turbo run start --filter=@wealthos/backend",
+        "preview": "turbo run preview --filter=@wealthos/frontend",
+        "test": "turbo run test",
+        "test:contracts": "turbo run test --filter=@wealthos/contracts",
+        "type-check": "turbo run type-check",
+        "clean": "turbo run clean"
     },
     "devDependencies": {
+        "turbo": "^2.5.0",
         "typescript": "^5.7.0"
-    }
+    },
+    "packageManager": "pnpm@9.0.0"
 }
