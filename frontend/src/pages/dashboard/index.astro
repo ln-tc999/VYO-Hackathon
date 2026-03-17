@@ -3,13 +3,13 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Dashboard" activePage="dashboard">
-<style>
+<style is:global>
   /* ── 2-col layout ── */
   .dash-wrap {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: 1fr 460px;
     gap: 0;
-    min-height: calc(100vh - 56px);
+    min-height: calc(100vh - 80px);
     box-sizing: border-box;
   }
 
@@ -79,80 +79,121 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
   /* ── RIGHT ── */
   .dash-right {
-    padding: 24px 20px;
+    padding: 22px 18px;
     display: flex; flex-direction: column; gap: 22px;
     overflow-y: auto;
   }
 
   /* Risk score */
   .risk-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
-  .risk-bar-wrap { margin: 12px 0 5px; }
+  .risk-bar-wrap { margin: 14px 0 6px; }
   .risk-bar-track {
-    width: 100%; height: 10px; background: rgba(255,255,255,0.07);
-    border-radius: 999px; overflow: hidden;
+    width: 100%; height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px; overflow: hidden;
   }
   .risk-bar-fill {
-    height: 100%; border-radius: 999px;
-    background: linear-gradient(90deg, #c8f135 0%, #f59e0b 55%, #ef4444 100%);
+    height: 100%; border-radius: 3px;
+    background: #c8f135;
     transition: width 0.6s ease;
   }
   .risk-labels { display: flex; justify-content: space-between; font-size: 0.6875rem; color: #555; }
 
-  /* Transactions */
+  /* Section header */
   .section-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .section-hdr-title { font-size: 0.9375rem; font-weight: 700; }
-  .view-all { font-size: 0.75rem; color: #c8f135; font-weight: 600; text-decoration: none; }
+  .view-all { font-size: 0.8125rem; color: #c8f135; font-weight: 600; text-decoration: none; }
   .view-all:hover { text-decoration: underline; }
 
-  /* Transaction grid — 2 cols, cards are rectangular (auto height) */
-  .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* ── Transaction 2-col grid ── */
+  .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
   .txn-card {
-    background: #161616; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 14px 13px;
-    cursor: pointer; transition: border-color 0.15s, background 0.15s;
-    display: flex; flex-direction: column; gap: 0;
+    background: #161616;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    padding: 13px 13px 13px;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
   }
-  .txn-card:hover { border-color: rgba(255,255,255,0.14); background: #1c1c1c; }
 
-  /* Lime highlight card */
-  .txn-card.lime {
-    background: #c8f135; border-color: #c8f135;
+  /* Fill from bottom to top on hover */
+  .txn-card::before {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 0;
+    background: rgba(200,241,53,0.08);
+    transition: height 0.35s ease;
+    z-index: 0;
+    border-radius: 16px;
   }
-  .txn-card.lime .txn-type,
-  .txn-card.lime .txn-date,
-  .txn-card.lime .txn-asset { color: rgba(0,0,0,0.55); }
+  .txn-card:hover { border-color: rgba(200,241,53,0.35); }
+  .txn-card:hover::before { height: 100%; }
+  .txn-card > * { position: relative; z-index: 1; }
+
+  /* Lime highlight */
+  .txn-card.lime { background: #c8f135; border-color: #c8f135; }
+  .txn-card.lime::before { background: rgba(0,0,0,0.08); }
+  .txn-card.lime:hover { border-color: #b8e020; }
+  .txn-card.lime .txn-type   { color: rgba(0,0,0,0.7); }
+  .txn-card.lime .txn-date   { color: rgba(0,0,0,0.45); }
+  .txn-card.lime .txn-asset  { color: rgba(0,0,0,0.5); }
   .txn-card.lime .txn-amount { color: #000; }
   .txn-card.lime .txn-status { color: rgba(0,0,0,0.6); }
-  .txn-card.lime .txn-sparkline path { stroke: rgba(0,0,0,0.25); }
 
-  /* Card top: icon + type + date */
-  .txn-top { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  /* Icon row */
+  .txn-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0; }
   .txn-icon {
-    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; font-weight: 700;
+    font-size: 1rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
   }
-  .txn-type { font-size: 0.8125rem; font-weight: 600; color: #fff; line-height: 1.2; }
+  .txn-card.lime .txn-icon {
+    background: rgba(0,0,0,0.1);
+    border-color: rgba(0,0,0,0.15);
+    color: #000;
+  }
+  .txn-meta { display: flex; flex-direction: column; }
+  .txn-type { font-size: 0.8125rem; font-weight: 700; color: #fff; line-height: 1.3; }
   .txn-date { font-size: 0.6875rem; color: #555; margin-top: 1px; }
 
-  /* Sparkline */
-  .txn-sparkline { width: 100%; height: 36px; margin-bottom: 10px; }
-  .txn-sparkline svg { width: 100%; height: 100%; }
+  /* Sparkline — full bleed */
+  .txn-spark {
+    width: calc(100% + 26px);
+    margin: 10px -13px;
+    height: 52px; flex-shrink: 0;
+  }
+  .txn-spark svg { width: 100%; height: 100%; display: block; }
 
-  /* Bottom: asset + amount + status */
-  .txn-asset { font-size: 0.6875rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-  .txn-amount { font-size: 1.0625rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin-bottom: 4px; }
-  .txn-status { font-size: 0.6875rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  /* Bottom info */
+  .txn-asset  {
+    font-size: 0.6875rem; color: #555; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .txn-amount {
+    font-size: 1.25rem; font-weight: 800; color: #fff;
+    letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 5px;
+  }
+  .txn-status {
+    font-size: 0.6875rem; font-weight: 600;
+    display: flex; align-items: center; gap: 4px;
+  }
   .txn-status.confirmed { color: #c8f135; }
   .txn-status.pending   { color: #f59e0b; }
   .txn-status.failed    { color: #ef4444; }
 
   /* Goals mini */
-  .goals-mini { display: flex; flex-direction: column; gap: 8px; }
+  .goals-mini { display: flex; flex-direction: column; gap: 6px; }
   .goal-mini {
-    background: #161616; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px; padding: 11px 13px;
+    background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 11px; padding: 11px 13px;
   }
   .goal-mini-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
   .goal-mini-name { font-size: 0.8125rem; font-weight: 600; }
@@ -302,7 +343,7 @@ function generateChartData(range: string): number[] {
 function drawChart(data: number[], hoverIdx = -1) {
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.parentElement!.clientWidth - 32;
-  const H = 340;
+  const H = 280;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + "px";
@@ -391,18 +432,6 @@ canvas.addEventListener("mouseleave", () => {
   document.getElementById("chart-tooltip")!.style.display = "none";
 });
 
-// ── Sparkline helper ──────────────────────────────────────
-function sparkPath(data: number[], w: number, h: number): string {
-  const min = Math.min(...data), max = Math.max(...data);
-  const rng = max - min || 1;
-  const pts = data.map((v, i) => `${(i/(data.length-1))*w},${h - ((v-min)/rng)*h}`);
-  return "M" + pts.join("L");
-}
-function genSpark(seed: number, count = 20): number[] {
-  let v = 50 + seed * 7;
-  return Array.from({length: count}, () => { v += (Math.random() - 0.48) * 8; return Math.max(10, Math.min(90, v)); });
-}
-
 // ── Load dashboard data ───────────────────────────────────
 async function loadDashboard() {
   try {
@@ -426,14 +455,22 @@ async function loadDashboard() {
     document.getElementById("s-net")!.textContent = fmt(d.totalYieldEarned);
     document.getElementById("s-net-pct")!.textContent = `-${((d.yieldToday * 0.1 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
 
-    // Risk bar
+    // Risk bar solid lime
     document.getElementById("risk-fill")!.style.width = "40%";
 
-    // Transactions
+    // Transactions — 2-col grid, card per transaksi dengan sparkline
     const txns = d.recentDecisions.slice(0, 6);
     const icons: Record<string,string> = { rebalance:"⇄", deposit_suggestion:"↓", goal_forecast:"◎", risk_alert:"⚠" };
-    const colors = ["#f97316","#3b82f6","#8b5cf6","#06b6d4","#c8f135","#ec4899"];
     const grid = document.getElementById("txn-grid")!;
+
+    function genSpark(seed: number, count = 22): number[] {
+      let v = 50 + seed * 9;
+      return Array.from({length: count}, () => { v += (Math.random() - 0.47) * 10; return Math.max(5, Math.min(95, v)); });
+    }
+    function sparkPath(pts: number[], w: number, h: number): string {
+      const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+      return "M" + pts.map((v, i) => `${(i/(pts.length-1))*w},${h - ((v-mn)/rng)*h}`).join("L");
+    }
 
     if(txns.length === 0) {
       grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">No recent activity</div>`;
@@ -443,27 +480,26 @@ async function loadDashboard() {
         if(!t) return `<div class="txn-card" style="opacity:0;pointer-events:none;"></div>`;
         const isLime = i === 2;
         const spark = genSpark(i);
-        const path = sparkPath(spark, 120, 36);
+        const path = sparkPath(spark, 200, 52);
         const amount = t.expectedGain >= 0 ? `+${fmt(t.expectedGain)}` : fmt(t.expectedGain);
         const status = t.status === "executed" ? "confirmed" : t.status === "rejected" ? "failed" : "pending";
         const statusIcon = status === "confirmed" ? "✓" : status === "failed" ? "✕" : "◷";
-        const color = colors[i % colors.length];
         const typeLabel = t.type.replace(/_/g," ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-        const dateStr = new Date(t.createdAt).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
-        return `
+        const dateStr = new Date(t.createdAt).toLocaleDateString("en-US",{day:"2-digit",month:"2-digit",year:"numeric"});
+        const strokeColor = isLime ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.4)";        return `
           <div class="txn-card ${isLime ? "lime" : ""}">
             <div class="txn-top">
-              <div class="txn-icon" style="background:${isLime?"rgba(0,0,0,0.12)":color+"22"};color:${isLime?"#000":color};">
+              <div class="txn-icon">
                 ${icons[t.type]||"◎"}
               </div>
-              <div>
+              <div class="txn-meta">
                 <div class="txn-type">${typeLabel}</div>
                 <div class="txn-date">${dateStr}</div>
               </div>
             </div>
-            <div class="txn-sparkline">
-              <svg viewBox="0 0 120 36" preserveAspectRatio="none">
-                <path d="${path}" fill="none" stroke="${isLime?"rgba(0,0,0,0.25)":"rgba(200,241,53,0.5)"}" stroke-width="1.5" stroke-linejoin="round"/>
+            <div class="txn-spark">
+              <svg viewBox="0 0 200 52" preserveAspectRatio="none">
+                <path d="${path}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
               </svg>
             </div>
             <div class="txn-asset">${t.goalName}</div>
