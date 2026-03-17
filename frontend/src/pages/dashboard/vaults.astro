@@ -3,159 +3,146 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Vaults" activePage="vaults">
-    <div class="page-header">
-        <h1 class="page-title">🏛️ YO Protocol Vaults</h1>
-        <p class="page-subtitle">
-            Explore yield opportunities across Ethereum and Base. All vaults are
-            powered by YO Protocol's ERC-4626 standard.
-        </p>
+<div style="padding:28px 24px;">
+
+  <div class="page-header">
+    <h1 class="page-title">YO Protocol Vaults</h1>
+    <p class="page-subtitle">Audited ERC-4626 vaults across Ethereum and Base.</p>
+  </div>
+
+  <!-- Filter -->
+  <div style="display:flex; gap:var(--s2); margin-bottom:var(--s6); flex-wrap:wrap;">
+    <button class="btn btn-primary filter-btn" data-chain="all"      onclick="filterVaults('all',this)">All</button>
+    <button class="btn btn-ghost  filter-btn" data-chain="Base"      onclick="filterVaults('Base',this)">⬡ Base</button>
+    <button class="btn btn-ghost  filter-btn" data-chain="Ethereum"  onclick="filterVaults('Ethereum',this)">◆ Ethereum</button>
+  </div>
+
+  <!-- Sort bar -->
+  <div style="display:flex; align-items:center; gap:var(--s4); margin-bottom:var(--s5); font-size:var(--font-xs); color:var(--text-muted);">
+    <span>Sort by:</span>
+    <button class="sort-btn active" data-sort="apy"      onclick="sortVaults('apy',this)"      style="background:none;border:none;cursor:pointer;color:var(--lime);font-size:var(--font-xs);font-weight:600;font-family:var(--font);">APY ↓</button>
+    <button class="sort-btn"        data-sort="tvl"      onclick="sortVaults('tvl',this)"      style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:var(--font-xs);font-weight:500;font-family:var(--font);">TVL</button>
+    <button class="sort-btn"        data-sort="risk"     onclick="sortVaults('risk',this)"     style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:var(--font-xs);font-weight:500;font-family:var(--font);">Risk</button>
+  </div>
+
+  <div class="vaults-grid" id="vaults-grid">
+    <div class="card empty-state loading">
+      <div class="empty-state-text">Loading vaults...</div>
     </div>
+  </div>
 
-    <!-- Vault Filter -->
-    <div
-        style="display: flex; gap: var(--space-3); margin-bottom: var(--space-6); flex-wrap: wrap;"
-    >
-        <button
-            class="btn btn-primary filter-btn active"
-            data-chain="all"
-            onclick="filterVaults('all', this)">All Chains</button
-        >
-        <button
-            class="btn btn-ghost filter-btn"
-            data-chain="Base"
-            onclick="filterVaults('Base', this)">⬡ Base</button
-        >
-        <button
-            class="btn btn-ghost filter-btn"
-            data-chain="Ethereum"
-            onclick="filterVaults('Ethereum', this)">◆ Ethereum</button
-        >
-    </div>
-
-    <div class="vaults-grid" id="vaults-grid">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading vaults...</div>
-        </div>
-    </div>
-
-    <script>
-        const API = "/api";
-        let allVaults = [];
-
-        function formatCurrency(n) {
-            return new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-                maximumFractionDigits: 0,
-            }).format(n);
-        }
-
-        function formatCompact(n) {
-            if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-            if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-            if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
-            return formatCurrency(n);
-        }
-
-        function getRiskClass(score) {
-            if (score <= 3) return "low";
-            if (score <= 6) return "";
-            return "high";
-        }
-
-        function renderVaults(vaults) {
-            const grid = document.getElementById("vaults-grid");
-
-            if (vaults.length === 0) {
-                grid.innerHTML = `
-          <div class="glass-card empty-state">
-            <div class="empty-state-icon">🏛️</div>
-            <div class="empty-state-text">No vaults found for this filter</div>
-          </div>
-        `;
-                return;
-            }
-
-            grid.innerHTML = vaults
-                .map(
-                    (v) => `
-        <div class="glass-card vault-card" data-chain="${v.chain}">
-          <div class="vault-card-header">
-            <div>
-              <div class="vault-symbol">${v.symbol}</div>
-              <div style="font-size: var(--font-sm); color: var(--text-secondary);">${v.name}</div>
-            </div>
-            <span class="chain-badge">${v.chain === "Base" ? "⬡" : "◆"} ${v.chain}</span>
-          </div>
-
-          <div class="vault-stats">
-            <div class="vault-stat-item">
-              <div class="vault-stat-label">APY</div>
-              <div class="vault-stat-value apy">${v.apy.toFixed(2)}%</div>
-            </div>
-            <div class="vault-stat-item">
-              <div class="vault-stat-label">TVL</div>
-              <div class="vault-stat-value tvl">${formatCompact(v.tvl)}</div>
-            </div>
-          </div>
-
-          <div class="vault-risk">
-            <span style="color: var(--text-muted); font-size: var(--font-xs);">Risk:</span>
-            <div class="risk-dots">
-              ${Array.from(
-                  { length: 10 },
-                  (_, i) => `
-                <div class="risk-dot ${i < v.riskScore ? `active ${getRiskClass(v.riskScore)}` : ""}"></div>
-              `,
-              ).join("")}
-            </div>
-            <span style="font-size: var(--font-xs); font-weight: 600; color: ${v.riskScore <= 3 ? "var(--accent-green)" : v.riskScore <= 6 ? "var(--accent-amber)" : "var(--accent-red)"};">
-              ${v.riskScore}/10
-            </span>
-          </div>
-
-          <div class="vault-underlying">
-            Underlying: ${v.underlyingSymbol} · Lockup: ${v.lockupPeriod}
-          </div>
-
-          <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">
-            🔒 View Smart Contract Audit →
-          </a>
-        </div>
-      `,
-                )
-                .join("");
-        }
-
-        function filterVaults(chain, btn) {
-            // Update active button
-            document.querySelectorAll(".filter-btn").forEach((b) => {
-                b.classList.remove("btn-primary", "active");
-                b.classList.add("btn-ghost");
-            });
-            btn.classList.remove("btn-ghost");
-            btn.classList.add("btn-primary", "active");
-
-            // Filter and render
-            const filtered =
-                chain === "all"
-                    ? allVaults
-                    : allVaults.filter((v) => v.chain === chain);
-            renderVaults(filtered);
-        }
-
-        async function loadVaults() {
-            try {
-                const res = await fetch(`${API}/vaults`);
-                const json = await res.json();
-                if (!json.success) return;
-                allVaults = json.data;
-                renderVaults(allVaults);
-            } catch (err) {
-                console.error("Failed to load vaults:", err);
-            }
-        }
-
-        loadVaults();
-    </script>
+</div>
 </MainLayout>
+
+<script>
+  const API = "/api";
+  let allVaults = [];
+  let currentChain = "all";
+  let currentSort = "apy";
+
+  function fmtCompact(n) {
+    if (n >= 1e9) return `$${(n/1e9).toFixed(1)}B`;
+    if (n >= 1e6) return `$${(n/1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `$${(n/1e3).toFixed(0)}K`;
+    return `$${n}`;
+  }
+
+  function getRiskClass(score) {
+    if (score <= 3) return "low";
+    if (score <= 6) return "";
+    return "high";
+  }
+
+  function renderVaults(vaults) {
+    const grid = document.getElementById("vaults-grid");
+    if (vaults.length === 0) {
+      grid.innerHTML = `<div class="card empty-state"><div class="empty-state-text">No vaults for this filter</div></div>`;
+      return;
+    }
+
+    grid.innerHTML = vaults.map(v => `
+      <div class="card vault-card" data-chain="${v.chain}">
+        <div class="vault-card-header">
+          <div>
+            <div class="vault-symbol">${v.symbol}</div>
+            <div style="font-size:var(--font-xs);color:var(--text-muted);margin-top:2px;">${v.name}</div>
+          </div>
+          <span class="chain-badge">${v.chain === "Base" ? "⬡" : "◆"} ${v.chain}</span>
+        </div>
+
+        <div class="vault-stats">
+          <div class="vault-stat-item">
+            <div class="vault-stat-label">APY</div>
+            <div class="vault-stat-value apy">${v.apy.toFixed(2)}%</div>
+          </div>
+          <div class="vault-stat-item">
+            <div class="vault-stat-label">TVL</div>
+            <div class="vault-stat-value tvl">${fmtCompact(v.tvl)}</div>
+          </div>
+        </div>
+
+        <div class="vault-risk">
+          <span style="color:var(--text-muted);">Risk</span>
+          <div class="risk-dots">
+            ${Array.from({length:10},(_,i) => `
+              <div class="risk-dot ${i < v.riskScore ? `active ${getRiskClass(v.riskScore)}` : ""}"></div>
+            `).join("")}
+          </div>
+          <span style="font-size:var(--font-xs);font-weight:700;color:${v.riskScore<=3?'var(--lime)':v.riskScore<=6?'var(--amber)':'var(--red)'};">
+            ${v.riskScore}/10
+          </span>
+        </div>
+
+        <div class="vault-underlying">
+          Underlying: ${v.underlyingSymbol} · ${v.lockupPeriod}
+        </div>
+
+        <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">
+          View Audit →
+        </a>
+      </div>`).join("");
+  }
+
+  function applyFiltersAndSort() {
+    let filtered = currentChain === "all" ? allVaults : allVaults.filter(v => v.chain === currentChain);
+    filtered = [...filtered].sort((a, b) => {
+      if (currentSort === "apy")  return b.apy - a.apy;
+      if (currentSort === "tvl")  return b.tvl - a.tvl;
+      if (currentSort === "risk") return a.riskScore - b.riskScore;
+      return 0;
+    });
+    renderVaults(filtered);
+  }
+
+  function filterVaults(chain, btn) {
+    currentChain = chain;
+    document.querySelectorAll(".filter-btn").forEach(b => {
+      b.classList.remove("btn-primary"); b.classList.add("btn-ghost");
+    });
+    btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary");
+    applyFiltersAndSort();
+  }
+
+  function sortVaults(sort, btn) {
+    currentSort = sort;
+    document.querySelectorAll(".sort-btn").forEach(b => {
+      b.style.color = "var(--text-muted)"; b.style.fontWeight = "500";
+    });
+    btn.style.color = "var(--lime)"; btn.style.fontWeight = "600";
+    applyFiltersAndSort();
+  }
+
+  async function loadVaults() {
+    try {
+      const res = await fetch(`${API}/vaults`);
+      const json = await res.json();
+      if (!json.success) return;
+      allVaults = json.data;
+      applyFiltersAndSort();
+    } catch (err) {
+      console.error("Failed to load vaults:", err);
+    }
+  }
+
+  loadVaults();
+</script>
