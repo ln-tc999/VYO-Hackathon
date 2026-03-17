@@ -1,5 +1,6 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import DepositIsland from "../../components/vault/DepositIsland.jsx";
 ---
 
 <MainLayout title="Vaults" activePage="vaults">
@@ -186,6 +187,11 @@ import MainLayout from "../../layouts/MainLayout.astro";
     <div class="vault-row" style="padding:32px;text-align:center;color:var(--text-muted);">Loading vaults...</div>
   </div>
 
+  <!-- Single shared deposit island — moves into open vault's mount div via vault-open event -->
+  <div id="deposit-island-root" style="display:none;">
+    <DepositIsland client:only="react" />
+  </div>
+
 </div>
 </MainLayout>
 
@@ -267,35 +273,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
               </div>
               <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">View Security Audit →</a>
             </div>
-
-            <div class="deposit-form">
-              <div class="deposit-form-title">Deposit into ${v.symbol}</div>
-              <div class="deposit-input-wrap">
-                <input
-                  class="deposit-input"
-                  type="number" min="0" step="any"
-                  placeholder="0.00"
-                  id="dinput-${v.id}"
-                  oninput="onAmountInput('${v.id}','${v.address}','${v.underlyingSymbol}')"
-                />
-                <span class="deposit-input-sym">${v.underlyingSymbol}</span>
-              </div>
-              <div class="deposit-preview" id="dpreview-${v.id}">
-                <div class="deposit-preview-row">
-                  <span class="deposit-preview-label">You receive</span>
-                  <span class="deposit-preview-val" id="dpreview-shares-${v.id}">—</span>
-                </div>
-                <div class="deposit-preview-row" style="margin-top:4px;">
-                  <span class="deposit-preview-label">Slippage</span>
-                  <span class="deposit-preview-val" id="dpreview-slip-${v.id}">—</span>
-                </div>
-              </div>
-              <button class="deposit-submit" id="dsubmit-${v.id}"
-                onclick="submitDeposit('${v.id}','${v.address}','${v.underlyingSymbol}')">
-                Deposit
-              </button>
-              <div class="deposit-msg" id="dmsg-${v.id}"></div>
-            </div>
+            <div id="deposit-mount-${v.id}"></div>
           </div>
         </div>
       </div>`;
@@ -342,77 +320,19 @@ import MainLayout from "../../layouts/MainLayout.astro";
   (window as any).toggleVault = (id: string) => {
     openVaultId = openVaultId === id ? null : id;
     applyFiltersAndSort();
+    // Notify the deposit island which vault is open
+    window.dispatchEvent(new CustomEvent('vault-open', {
+      detail: openVaultId ? allVaults.find(v => v.id === openVaultId) : null
+    }));
   };
 
   (window as any).openDeposit = (id: string) => {
     openVaultId = id;
     applyFiltersAndSort();
-    setTimeout(() => document.getElementById(`dinput-${id}`)?.focus(), 50);
-  };
-
-  let previewTimer: ReturnType<typeof setTimeout> | null = null;
-  (window as any).onAmountInput = (id: string, address: string, sym: string) => {
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => fetchPreview(id, address, sym), 500);
-  };
-
-  async function fetchPreview(id: string, address: string, sym: string) {
-    const input  = document.getElementById(`dinput-${id}`) as HTMLInputElement;
-    const amount = parseFloat(input.value);
-    if (!amount || amount <= 0) {
-      document.getElementById(`dpreview-${id}`)!.classList.remove('show');
-      return;
-    }
-    try {
-      const res  = await fetch(`${API}/transactions/preview-deposit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vaultAddress: address, amount }),
-      });
-      const json = await res.json();
-      if (!json.success) return;
-      document.getElementById(`dpreview-${id}`)!.classList.add('show');
-      document.getElementById(`dpreview-shares-${id}`)!.textContent = `${json.data.shares.toFixed(4)} ${sym}`;
-      document.getElementById(`dpreview-slip-${id}`)!.textContent   = `${json.data.slippage ?? 0.5}%`;
-    } catch (e) {
-      console.error('Preview failed', e);
-    }
-  }
-
-  (window as any).submitDeposit = async (id: string, address: string, sym: string) => {
-    const input  = document.getElementById(`dinput-${id}`) as HTMLInputElement;
-    const btn    = document.getElementById(`dsubmit-${id}`) as HTMLButtonElement;
-    const msgEl  = document.getElementById(`dmsg-${id}`)!;
-    const amount = parseFloat(input.value);
-
-    if (!amount || amount <= 0) {
-      msgEl.className = 'deposit-msg err';
-      msgEl.textContent = 'Enter a valid amount';
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Building tx...';
-    msgEl.className = 'deposit-msg';
-    msgEl.textContent = '';
-
-    try {
-      const res  = await fetch(`${API}/transactions/build-deposit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vaultAddress: address, amount, userAddress: '0x0000000000000000000000000000000000000000' }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Build failed');
-      msgEl.className = 'deposit-msg ok';
-      msgEl.textContent = `✓ Tx ready — connect wallet to sign (${json.data.transactions.length} tx)`;
-    } catch (err: any) {
-      msgEl.className = 'deposit-msg err';
-      msgEl.textContent = err.message || 'Failed to build transaction';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Deposit';
-    }
+    window.dispatchEvent(new CustomEvent('vault-open', {
+      detail: allVaults.find(v => v.id === id) ?? null
+    }));
+    setTimeout(() => document.getElementById(`deposit-mount-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
   };
 
   async function loadVaults() {
