@@ -3,116 +3,146 @@ interface Props {
   title: string;
   activePage?: string;
 }
-
 const { title, activePage = "dashboard" } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="WealthOS — Your intelligent personal financial operating system. Unify savings, DeFi yield, and AI automation in one dashboard."
-    />
-    <title>{title} | WealthOS</title>
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🏦</text></svg>"
-    />
-    <link rel="stylesheet" href="/src/styles/global.css" />
-  </head>
-  <body>
-    <div class="app-layout">
-      <!-- Sidebar Navigation -->
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">W</div>
-          <span class="sidebar-logo-text">WealthOS</span>
-        </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} | Vyo</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23c8f135'/><text y='23' x='5' font-size='18' font-weight='900' fill='%23000'>V</text></svg>" />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+  <style>
+    /* ── Topnav ── */
+    .topnav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: 56px;
+      background: #0a0a0a;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center;
+      padding: 0 24px;
+      gap: 0;
+    }
 
-        <nav class="sidebar-nav">
-          <a
-            href="/dashboard"
-            class={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
-          >
-            <span class="nav-item-icon">📊</span>
-            Dashboard
-          </a>
-          <a
-            href="/dashboard/goals"
-            class={`nav-item ${activePage === "goals" ? "active" : ""}`}
-          >
-            <span class="nav-item-icon">🎯</span>
-            Goals
-          </a>
-          <a
-            href="/dashboard/vaults"
-            class={`nav-item ${activePage === "vaults" ? "active" : ""}`}
-          >
-            <span class="nav-item-icon">🏛️</span>
-            Vaults
-          </a>
-          <a
-            href="/dashboard/ai"
-            class={`nav-item ${activePage === "ai" ? "active" : ""}`}
-          >
-            <span class="nav-item-icon">🤖</span>
-            WealthCoach
-          </a>
-          <a
-            href="/dashboard/settings"
-            class={`nav-item ${activePage === "settings" ? "active" : ""}`}
-          >
-            <span class="nav-item-icon">⚙️</span>
-            Settings
-          </a>
-        </nav>
+    .topnav-logo {
+      display: flex; align-items: center; gap: 9px;
+      margin-right: 40px; flex-shrink: 0;
+    }
+    .topnav-logo-icon {
+      width: 28px; height: 28px;
+      background: #c8f135; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8125rem; font-weight: 900; color: #000;
+    }
+    .topnav-logo-text {
+      font-size: 1rem; font-weight: 800; color: #fff; letter-spacing: -0.3px;
+    }
 
-        <div class="sidebar-footer">
-          <div class="nav-item" id="wallet-btn" style="cursor:pointer;">
-            <span class="nav-item-icon">👛</span>
-            <span id="wallet-status">Connect Wallet</span>
-          </div>
-        </div>
-      </aside>
+    .topnav-links {
+      display: flex; align-items: center; gap: 4px; flex: 1;
+    }
+    .topnav-link {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8125rem; font-weight: 500;
+      color: #666;
+      text-decoration: none;
+      transition: color 0.15s, background 0.15s;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .topnav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .topnav-link.active { color: #fff; font-weight: 600; }
 
-      <!-- Main Content -->
-      <main class="main-content">
-        <slot />
-      </main>
+    .topnav-right {
+      display: flex; align-items: center; gap: 10px; margin-left: auto;
+    }
+
+    .topnav-search {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      background: #161616; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; cursor: pointer;
+      color: #555; font-size: 0.8125rem;
+      transition: border-color 0.15s;
+    }
+    .topnav-search:hover { border-color: rgba(255,255,255,0.15); color: #888; }
+
+    .topnav-wallet {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      background: #161616; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.8125rem; font-weight: 500; color: #ccc;
+      transition: border-color 0.15s;
+      max-width: 200px;
+    }
+    .topnav-wallet:hover { border-color: rgba(255,255,255,0.2); }
+    .topnav-wallet-addr {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .topnav-notif {
+      width: 34px; height: 34px;
+      background: #161616; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #666; font-size: 0.9rem;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .topnav-notif:hover { border-color: rgba(255,255,255,0.2); color: #ccc; }
+
+    /* ── Page body ── */
+    .page-body {
+      margin-top: 56px;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .topnav-links { display: none; }
+      .topnav-search { display: none; }
+      .topnav-wallet-addr { max-width: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="topnav">
+    <div class="topnav-logo">
+      <div class="topnav-logo-icon">V</div>
+      <span class="topnav-logo-text">vyo</span>
     </div>
 
-    <!-- Mobile menu toggle -->
-    <button
-      id="mobile-menu-btn"
-      style="display:none; position:fixed; top:16px; left:16px; z-index:200; background:var(--bg-card); border:1px solid var(--border-glass); border-radius:var(--radius-md); padding:8px 12px; color:var(--text-primary); font-size:1.25rem; cursor:pointer;"
-    >
-      ☰
-    </button>
+    <nav class="topnav-links">
+      <a href="/dashboard"          class={`topnav-link ${activePage === "dashboard" ? "active" : ""}`}>Dashboard</a>
+      <a href="/dashboard/vaults"   class={`topnav-link ${activePage === "vaults"    ? "active" : ""}`}>Vaults</a>
+      <a href="/dashboard/goals"    class={`topnav-link ${activePage === "goals"     ? "active" : ""}`}>Goals</a>
+      <a href="/dashboard/ai"       class={`topnav-link ${activePage === "ai"        ? "active" : ""}`}>AI Agent</a>
+      <a href="/dashboard/settings" class={`topnav-link ${activePage === "settings"  ? "active" : ""}`}>Settings</a>
+    </nav>
 
-    <script>
-      // Mobile menu toggle
-      const menuBtn = document.getElementById("mobile-menu-btn");
-      const sidebar = document.getElementById("sidebar");
+    <div class="topnav-right">
+      <div class="topnav-search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </div>
+      <div class="topnav-wallet" id="wallet-btn">
+        <span style="font-size:1rem;">🦊</span>
+        <span class="topnav-wallet-addr" id="wallet-status">Connect Wallet</span>
+      </div>
+      <div class="topnav-notif">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+    </div>
+  </header>
 
-      if (window.innerWidth <= 768 && menuBtn) {
-        menuBtn.style.display = "block";
-        menuBtn.addEventListener("click", () => {
-          sidebar?.classList.toggle("open");
-        });
-      }
+  <!-- Page Content -->
+  <div class="page-body">
+    <slot />
+  </div>
 
-      window.addEventListener("resize", () => {
-        if (menuBtn) {
-          menuBtn.style.display = window.innerWidth <= 768 ? "block" : "none";
-        }
-        if (window.innerWidth > 768) {
-          sidebar?.classList.remove("open");
-        }
-      });
-    </script>
-  </body>
+</body>
 </html>
