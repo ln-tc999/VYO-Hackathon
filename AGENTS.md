@@ -9,8 +9,10 @@ This file provides guidance for AI agents working on the Vyo Apps codebase.
 Vyo Apps is an AI-Powered DeFi Yield Optimizer built with:
 - **Frontend**: Astro + React + Wagmi/Web3
 - **Backend**: Node.js + Express
-- **Shared**: TypeScript types
-- **Contracts**: Solidity (Foundry)
+- **Smart Contracts**: Solidity (Foundry)
+- **Blockchain**: Base (EVM)
+- **Yield Protocol**: YO Protocol (ERC-4626)
+- **Automation**: Chainlink Automation
 - **Package Manager**: pnpm
 - **Monorepo**: Turbo
 
@@ -79,8 +81,8 @@ forge fmt
 # Check formatting without modifying
 forge fmt --check
 
-# Deploy
-forge script script/Deploy.s.sol
+# Deploy to Base Sepolia
+forge script script/Deploy.s.sol:DeployVyoRouter --rpc-url https://sepolia.base.org --broadcast --verify
 ```
 
 **Note**: Frontend and backend packages currently have no linting configured. Use TypeScript strict mode for code quality.
@@ -131,11 +133,11 @@ import { getStore } from '../models/store.js';
 // React hooks
 import { useState, useEffect } from 'react';
 
-// Astro/Actions
-import { actions } from 'astro:actions';
-
 // Wagmi
 import { useAccount, useWriteContract } from 'wagmi';
+
+// Contract hooks
+import { useUserGoals, useBatchDeposit } from './lib/hooks.js';
 ```
 
 ### Naming Conventions
@@ -195,29 +197,40 @@ All API responses follow this structure:
 **Backend**:
 ```
 backend/src/
-├── index.ts              # Entry point
-├── routes/               # API route handlers
+├── index.ts                    # Entry point
+├── routes/                     # API route handlers
 │   ├── goals.ts
 │   ├── vaults.ts
-│   └── transactions.ts
-├── services/             # Business logic
+│   ├── transactions.ts         # Deposit/Redeem + Preview APIs
+│   └── ai.ts
+├── services/
 │   ├── ai/
 │   │   ├── vioAgent.ts
 │   │   └── decisionEngine.ts
-│   └── yo-sdk/
-├── middleware/           # Express middleware
-├── models/               # Data models/store
-└── jobs/                 # Cron jobs
+│   ├── yo-sdk/
+│   │   └── client.ts          # YO SDK wrapper
+│   ├── automation/
+│   │   ├── chainlink.ts        # Chainlink integration
+│   │   └── monitor.ts          # Automation monitor
+│   └── contracts/
+│       └── vyoRouter.ts        # Contract wrapper
+├── middleware/
+├── models/
+│   └── store.ts
+└── jobs/
+    └── vioLoop.ts
 ```
 
 **Frontend**:
 ```
 frontend/src/
-├── pages/                # Astro pages
-├── components/           # React components
-├── layouts/              # Page layouts
-├── lib/                  # Utilities (api.ts, wallet.ts)
-└── stores/               # Nano stores
+├── pages/                     # Astro pages
+├── components/                # React components
+├── lib/
+│   ├── wallet.ts             # Wagmi config
+│   ├── abi.ts               # Contract ABIs
+│   └── hooks.ts              # Contract interaction hooks
+└── stores/
 ```
 
 ### Solidity (Contracts)
@@ -246,12 +259,114 @@ Add comments for:
 
 ---
 
-## 4. Environment Variables
+## 4. Deployment Info
+
+### Deployed Contracts
+
+| Contract | Network | Address |
+|---------|---------|---------|
+| VyoRouter | Base Sepolia | `0x94B98209622EF89426dA8FCCa73BeA096AA43Ff5` |
+| USDC | Base Sepolia | `0x036cBd53842c5426634E92B0C9D5eb112A4E1d4d` |
+
+**Explorer**: https://sepolia.basescan.org/address/0x94B98209622EF89426dA8FCCa73BeA096AA43Ff5
+
+### YO Protocol (Mainnet Only)
+
+**Note**: YO Protocol vaults are only available on Base Mainnet (NOT testnet). For real transactions, use Base Mainnet:
+
+| Vault | Address |
+|-------|---------|
+| yoUSD | `0x0000000f2eb9f69274678c76222b35eec7588a65` |
+| yoETH | `0x3a43aec53490cb9fa922847385d82fe25d0e9de7` |
+| yoBTC | `0xbcbc8cb4d1e8ed048a6276a5e94a3e952660bcbc` |
+
+---
+
+## 5. YO SDK Integration
+
+### Available Methods
+
+| Method | Description |
+|--------|-------------|
+| `getVaults()` | Get all available vaults |
+| `getVaultDetails(id)` | Get specific vault info |
+| `getVaultSnapshot(addr)` | Real-time APY, TVL |
+| `getUserPosition(addr, user)` | User's position in vault |
+| `previewDeposit(addr, amount)` | Preview shares before deposit |
+| `previewRedeem(addr, shares)` | Preview assets before redeem |
+| `buildDepositWithApproval()` | Build deposit + approve tx |
+| `buildRedeemWithApproval()` | Build redeem + approve tx |
+| `getTokenPrices()` | ETH, USDC, USDT, DAI prices |
+| `getClaimableRewards()` | Merkl rewards |
+
+### Usage
+
+```typescript
+import { yoService } from '../services/yo-sdk/client.js';
+
+// Get vaults
+const vaults = await yoService.getVaults();
+
+// Preview deposit
+const shares = await yoService.previewDeposit(vaultAddress, amount);
+
+// Build transaction for wallet
+const { transactions, preview } = await yoService.buildDepositWithApproval(
+    vaultAddress,
+    amount,
+    userAddress
+);
+```
+
+---
+
+## 6. Chainlink Automation
+
+### Contract Functions
+
+```solidity
+// Configure automation
+setAutomationConfig(
+    goalId,
+    true,   // autoCompound
+    false,  // autoRebalance
+    7,       // compound every 7 days
+    200,    // 2% threshold
+    10e6    // min $10 to compound
+);
+
+// Trigger compound manually
+compoundYield(goalId);
+
+// Check automation status
+getAutomationConfig(goalId);
+```
+
+### Backend Service
+
+```typescript
+import { createAutomationMonitorService } from '../services/automation/index.js';
+
+const monitor = createAutomationMonitorService(routerAddress);
+
+// Start monitoring
+monitor.startMonitoring();
+
+// Check specific goal
+const decisions = await monitor.checkGoal(goalId);
+```
+
+---
+
+## 7. Environment Variables
 
 ### Backend (.env)
 ```env
 PORT=3001
-YO_API_URL=https://api.yoprotocol.io
+YO_CHAIN_ID=84532
+DEV_MODE=mock
+VYOROUTER_ADDRESS=0x94B98209622EF89426dA8FCCa73BeA096AA43Ff5
+CHAINLINK_REGISTRY_ADDRESS=0x...
 ```
 
 ### Frontend (.env.local)
@@ -262,31 +377,33 @@ PUBLIC_CHAIN_ID=84532  # Base Sepolia
 
 ---
 
-## 5. Key Files and Locations
+## 8. Key Files and Locations
 
 | Purpose | Path |
 |---------|------|
 | Shared Types | `shared/types/index.ts` |
 | API Routes | `backend/src/routes/*.ts` |
-| AI Services | `backend/src/services/ai/*.ts` |
+| YO SDK Service | `backend/src/services/yo-sdk/client.ts` |
+| Automation Services | `backend/src/services/automation/*.ts` |
+| Contract Wrapper | `backend/src/services/contracts/vyoRouter.ts` |
 | Wallet Config | `frontend/src/lib/wallet.ts` |
-| Store/State | `backend/src/models/store.ts` |
-| Solidity Contract | `contracts/src/VyoRouter.sol` |
+| Contract Hooks | `frontend/src/lib/hooks.ts` |
+| Smart Contract | `contracts/src/VyoRouter.sol` |
 
 ---
 
-## 6. Development Workflow
+## 9. Development Workflow
 
 1. **Start dev servers**: `pnpm dev`
 2. **Frontend**: http://localhost:4321
 3. **Backend API**: http://localhost:3001
 4. **Make changes** in appropriate package
 5. **Type-check**: `pnpm type-check`
-6. **Test contracts**: `pnpm test:contracts`
+6. **Deploy contracts**: `cd contracts && forge script script/Deploy.s.sol:DeployVyoRouter --rpc-url https://sepolia.base.org --broadcast --verify`
 
 ---
 
-## 7. Testing Notes
+## 10. Testing Notes
 
 - **Contracts**: Use `forge test` — supports `--match-test` for single tests
 - **Frontend/Backend**: No test framework currently configured
@@ -294,9 +411,44 @@ PUBLIC_CHAIN_ID=84532  # Base Sepolia
 
 ---
 
-## 8. Common Issues
+## 11. Common Issues
 
 - **Module resolution**: Always use `.js` extension for local imports in TypeScript
 - **WalletConnect**: Requires project ID in environment variables
 - **Chain configuration**: Currently uses Base Sepolia testnet (84532)
 - **No database**: Backend is stateless; data stored in-memory
+- **YO Protocol**: Only available on Base Mainnet, not testnet
+
+---
+
+## 12. API Endpoints
+
+### Transactions (with Preview)
+```
+POST /api/transactions/preview-deposit   # Preview deposit result
+POST /api/transactions/preview-redeem   # Preview redeem result
+POST /api/transactions/build-deposit   # Build deposit tx for wallet
+POST /api/transactions/build-redeem    # Build redeem tx for wallet
+```
+
+### Goals
+```
+GET    /api/goals         # List goals
+POST   /api/goals         # Create goal
+GET    /api/goals/:id     # Get goal
+PUT    /api/goals/:id     # Update goal
+DELETE /api/goals/:id     # Delete goal
+```
+
+### Vaults
+```
+GET /api/vaults           # List vaults
+GET /api/vaults/:id       # Vault details
+```
+
+### AI
+```
+GET  /api/ai/decisions              # Decision history
+POST /api/ai/decisions/:id/approve # Approve decision
+POST /api/ai/decisions/:id/reject  # Reject decision
+```
