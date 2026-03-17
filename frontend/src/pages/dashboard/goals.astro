@@ -3,6 +3,13 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Goals" activePage="goals">
+<style>
+  .goals-create-row { display: flex; gap: var(--s3); }
+  @media (max-width: 480px) {
+    .goals-create-row { flex-direction: column; }
+    .goals-create-row .btn { width: 100%; }
+  }
+</style>
 <div style="padding:28px 24px;">
 
   <div class="page-header">
@@ -15,7 +22,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
     <div style="margin-bottom:var(--s3); font-size:var(--font-sm); font-weight:600; color:var(--text-primary);">
       Create a New Goal
     </div>
-    <div style="display:flex; gap:var(--s3);">
+    <div class="goals-create-row">
       <input
         type="text"
         class="input"
