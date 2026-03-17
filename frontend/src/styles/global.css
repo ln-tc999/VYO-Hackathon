@@ -3,7 +3,7 @@
    Dark black + Lime accent (referensi paytech)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
 
 /* ---------- CSS Custom Properties ---------- */
 :root {
@@ -41,7 +41,7 @@
   --blue-dim:   rgba(59,130,246,0.12);
 
   /* Typography */
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-xs:   0.6875rem;
   --font-sm:   0.8125rem;
   --font-base: 0.9375rem;
