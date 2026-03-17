@@ -1,5 +1,6 @@
 ---
 import Topnav from '../components/layout/Topnav.astro';
+import '../styles/global.css';
 
 interface Props {
   title: string;
@@ -16,7 +17,6 @@ const { title, activePage = 'dashboard' } = Astro.props;
   <title>{title} | Vyo</title>
   <link rel="icon" type="image/svg+xml"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23c8f135'/><text y='23' x='5' font-size='18' font-weight='900' fill='%23000'>V</text></svg>" />
-  <link rel="stylesheet" href="/src/styles/global.css" />
 </head>
 <body>
   <Topnav activePage={activePage} />
