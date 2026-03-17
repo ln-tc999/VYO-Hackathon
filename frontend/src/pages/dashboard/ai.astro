@@ -39,7 +39,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
 <script>
   const API = "/api";
-  let allDecisions = [];
+  let allDecisions: any[] = [];
   let currentFilter = "all";
 
   const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -132,7 +132,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
     renderDecisions(filtered);
   }
 
-  function filterDecisions(filter, btn) {
+  function filterDecisions(filter: string, btn: HTMLElement) {
     currentFilter = filter;
     document.querySelectorAll(".filter-btn").forEach(b => {
       b.classList.remove("btn-primary", "active"); b.classList.add("btn-ghost");
@@ -172,9 +172,9 @@ import MainLayout from "../../layouts/MainLayout.astro";
     loadDecisions();
   }
 
-  function showToast(msg) {
+  function showToast(msg: string) {
     const t = document.createElement("div");
-    t.style.cssText = "position:fixed;top:20px;right:20px;z-index:9999;background:var(--bg-card);border:1px solid var(--border-hover);color:var(--text-primary);padding:12px 18px;border-radius:var(--r-md);font-weight:500;font-size:var(--font-sm);box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:celebrate 0.3s ease-out;";
+    t.className = "toast";
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
