@@ -1,726 +1,372 @@
 ---
 const features = [
-    {
-        icon: "🎯",
-        title: "Goal-Based Savings",
-        desc: "Set your goals in plain English. WealthOS figures out the best strategy.",
-    },
-    {
-        icon: "🤖",
-        title: "AI WealthCoach",
-        desc: "24/7 yield optimizer that rebalances your portfolio and explains every decision.",
-    },
-    {
-        icon: "🏛️",
-        title: "YO Protocol Vaults",
-        desc: "Earn yield on ETH, BTC, USD, EUR, and Gold through audited ERC-4626 vaults.",
-    },
-    {
-        icon: "🔒",
-        title: "You Stay in Control",
-        desc: "AI never moves money without your approval. Every action is logged transparently.",
-    },
-    {
-        icon: "⚡",
-        title: "Multi-Chain",
-        desc: "Optimized for Base L2 gas savings with Ethereum mainnet support.",
-    },
-    {
-        icon: "📊",
-        title: "Unified Dashboard",
-        desc: "See your traditional bank + DeFi positions in one single net worth view.",
-    },
+  { icon: "◎", title: "Goal-Based Savings",    desc: "Set your goals in plain English. Vyo figures out the best vault strategy automatically." },
+  { icon: "◈", title: "AI Agent",              desc: "24/7 yield optimizer that rebalances your portfolio and explains every decision before acting." },
+  { icon: "⬡", title: "YO Protocol Vaults",   desc: "Earn yield on ETH, BTC, USD, EUR, and Gold through audited ERC-4626 vaults." },
+  { icon: "◉", title: "You Stay in Control",   desc: "AI never moves money without your approval. Every action is logged transparently." },
+  { icon: "▦", title: "Unified Dashboard",     desc: "See your traditional bank + DeFi positions in one single net worth view." },
+  { icon: "⚡", title: "Base L2",              desc: "Optimized for Base L2 — near-zero gas fees with full Ethereum security." },
 ];
 
 const vaults = [
-    { symbol: "yoUSD", underlying: "USDC", apy: "8.42%", chain: "Base" },
-    { symbol: "yoETH", underlying: "WETH", apy: "5.23%", chain: "Base" },
-    { symbol: "yoBTC", underlying: "cbBTC", apy: "3.67%", chain: "Base" },
-    { symbol: "yoUSDT", underlying: "USDT", apy: "7.85%", chain: "Ethereum" },
-    { symbol: "yoGOLD", underlying: "XAUt", apy: "4.12%", chain: "Ethereum" },
-    { symbol: "yoEUR", underlying: "EURC", apy: "6.91%", chain: "Base" },
-];
-
-const steps = [
-    {
-        num: "01",
-        title: "Tell us your goal",
-        desc: '"Save $15,000 for a new car by June 2026"',
-    },
-    {
-        num: "02",
-        title: "AI picks the best vaults",
-        desc: "WealthCoach splits your deposit across YO Protocol vaults based on your risk profile.",
-    },
-    {
-        num: "03",
-        title: "Watch your money grow",
-        desc: "Track progress in real-time. Approve or dismiss AI suggestions anytime.",
-    },
+  { symbol: "yoUSD",  underlying: "USDC",  apy: "8.42%", chain: "Base",     risk: 2 },
+  { symbol: "yoETH",  underlying: "WETH",  apy: "5.23%", chain: "Base",     risk: 5 },
+  { symbol: "yoBTC",  underlying: "cbBTC", apy: "3.67%", chain: "Base",     risk: 6 },
+  { symbol: "yoUSDT", underlying: "USDT",  apy: "7.85%", chain: "Ethereum", risk: 2 },
+  { symbol: "yoGOLD", underlying: "XAUt",  apy: "4.12%", chain: "Ethereum", risk: 4 },
+  { symbol: "yoEUR",  underlying: "EURC",  apy: "6.91%", chain: "Base",     risk: 3 },
 ];
 ---
 
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta
-            name="description"
-            content="WealthOS — Your intelligent personal financial operating system. Set your goals once. WealthOS handles the rest."
-        />
-        <title>WealthOS — Intelligent Personal Financial OS</title>
-        <link
-            rel="icon"
-            type="image/svg+xml"
-            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🏦</text></svg>"
-        />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            /* ---- Reset ---- */
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            html {
-                font-size: 16px;
-                scroll-behavior: smooth;
-                -webkit-font-smoothing: antialiased;
-            }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vyo — AI-Powered DeFi Yield Optimizer</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23c8f135'/><text y='23' x='5' font-size='18' font-weight='900' fill='%23000'>V</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
 
-            body {
-                font-family:
-                    "Inter",
-                    -apple-system,
-                    sans-serif;
-                background: #050816;
-                color: #f1f5f9;
-                line-height: 1.6;
-                overflow-x: hidden;
-            }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
 
-            /* ---- Ambient glow background ---- */
-            body::before {
-                content: "";
-                position: fixed;
-                inset: 0;
-                background:
-                    radial-gradient(
-                        ellipse 80% 50% at 20% 40%,
-                        rgba(59, 130, 246, 0.12) 0%,
-                        transparent 60%
-                    ),
-                    radial-gradient(
-                        ellipse 60% 40% at 75% 20%,
-                        rgba(139, 92, 246, 0.1) 0%,
-                        transparent 55%
-                    ),
-                    radial-gradient(
-                        ellipse 50% 60% at 50% 80%,
-                        rgba(6, 182, 212, 0.06) 0%,
-                        transparent 50%
-                    );
-                pointer-events: none;
-                z-index: 0;
-            }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
-            /* ---- Layout ---- */
-            .container {
-                max-width: 1120px;
-                margin: 0 auto;
-                padding: 0 24px;
-                position: relative;
-                z-index: 1;
-            }
-            section {
-                padding: 100px 0;
-            }
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 14px 0;
+      background: rgba(10,10,10,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-inner { display: flex; justify-content: space-between; align-items: center; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; }
+    .nav-logo-icon {
+      width: 30px; height: 30px;
+      background: #c8f135;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.875rem; font-weight: 900; color: #000;
+    }
+    .nav-logo-text { font-size: 1rem; font-weight: 700; color: #fff; }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: #888; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .nav-links a:hover { color: #fff; }
+    .btn-nav {
+      padding: 7px 18px; background: #c8f135; color: #000;
+      border-radius: 8px; font-size: 0.8125rem; font-weight: 700;
+      text-decoration: none; transition: all 0.15s;
+    }
+    .btn-nav:hover { background: #d4f53c; color: #000; }
 
-            /* ---- Nav ---- */
-            nav {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                z-index: 100;
-                padding: 16px 0;
-                background: rgba(5, 8, 22, 0.7);
-                backdrop-filter: blur(20px);
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            }
-            .nav-inner {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .nav-logo {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                font-size: 1.25rem;
-                font-weight: 800;
-            }
-            .nav-logo-icon {
-                width: 34px;
-                height: 34px;
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 900;
-                color: white;
-                font-size: 1rem;
-            }
-            .nav-logo-text {
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-            .nav-links {
-                display: flex;
-                gap: 32px;
-                align-items: center;
-            }
-            .nav-links a {
-                color: #94a3b8;
-                font-size: 0.875rem;
-                font-weight: 500;
-                text-decoration: none;
-                transition: color 0.2s;
-            }
-            .nav-links a:hover {
-                color: #f1f5f9;
-            }
+    /* Hero */
+    .hero { padding: 160px 0 100px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 14px; border-radius: 999px;
+      background: rgba(200,241,53,0.1); border: 1px solid rgba(200,241,53,0.2);
+      font-size: 0.75rem; font-weight: 600; color: #c8f135;
+      margin-bottom: 28px;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #c8f135;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:0.4;} 50%{opacity:1;} }
 
-            /* ---- Buttons ---- */
-            .btn {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 12px 28px;
-                border-radius: 12px;
-                font-family: "Inter", sans-serif;
-                font-size: 0.95rem;
-                font-weight: 600;
-                cursor: pointer;
-                border: none;
-                transition: all 0.2s;
-                text-decoration: none;
-            }
-            .btn:active {
-                transform: scale(0.97);
-            }
-            .btn-primary {
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-                color: white;
-                box-shadow: 0 0 24px rgba(59, 130, 246, 0.35);
-            }
-            .btn-primary:hover {
-                box-shadow: 0 0 32px rgba(139, 92, 246, 0.45);
-                filter: brightness(1.08);
-            }
-            .btn-outline {
-                background: transparent;
-                color: #94a3b8;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            .btn-outline:hover {
-                background: rgba(255, 255, 255, 0.04);
-                color: white;
-                border-color: rgba(255, 255, 255, 0.2);
-            }
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 4.25rem);
+      font-weight: 900; line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 24px;
+    }
+    h1 .lime { color: #c8f135; }
 
-            /* ---- Hero ---- */
-            .hero {
-                padding: 160px 0 100px;
-                text-align: center;
-            }
-            .hero-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 6px 16px;
-                border-radius: 100px;
-                background: rgba(59, 130, 246, 0.1);
-                border: 1px solid rgba(59, 130, 246, 0.2);
-                font-size: 0.8rem;
-                font-weight: 600;
-                color: #60a5fa;
-                margin-bottom: 28px;
-            }
-            .hero-badge-dot {
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: #3b82f6;
-                animation: pulse-dot 2s infinite;
-            }
-            @keyframes pulse-dot {
-                0%,
-                100% {
-                    opacity: 0.4;
-                    transform: scale(1);
-                }
-                50% {
-                    opacity: 1;
-                    transform: scale(1.4);
-                }
-            }
-            .hero h1 {
-                font-size: clamp(2.5rem, 5.5vw, 4.5rem);
-                font-weight: 900;
-                line-height: 1.1;
-                margin-bottom: 24px;
-                letter-spacing: -0.03em;
-            }
-            .hero h1 .gradient {
-                background: linear-gradient(
-                    135deg,
-                    #3b82f6 0%,
-                    #8b5cf6 40%,
-                    #06b6d4 80%
-                );
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-            .hero-sub {
-                font-size: 1.2rem;
-                color: #94a3b8;
-                max-width: 580px;
-                margin: 0 auto 40px;
-                line-height: 1.7;
-            }
-            .hero-ctas {
-                display: flex;
-                gap: 16px;
-                justify-content: center;
-                flex-wrap: wrap;
-            }
+    .hero-sub {
+      font-size: 1.1rem; color: #888;
+      max-width: 520px; margin-bottom: 40px; line-height: 1.7;
+    }
 
-            .hero-stats {
-                display: flex;
-                justify-content: center;
-                gap: 48px;
-                margin-top: 64px;
-                padding-top: 48px;
-                border-top: 1px solid rgba(255, 255, 255, 0.06);
-            }
-            .hero-stat-val {
-                font-size: 2rem;
-                font-weight: 800;
-                background: linear-gradient(135deg, #10b981, #06b6d4);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-            .hero-stat-label {
-                font-size: 0.8rem;
-                color: #64748b;
-                margin-top: 4px;
-                font-weight: 500;
-            }
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-primary {
+      padding: 13px 28px; background: #c8f135; color: #000;
+      border-radius: 10px; font-size: 0.9375rem; font-weight: 700;
+      text-decoration: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-primary:hover { background: #d4f53c; box-shadow: 0 0 24px rgba(200,241,53,0.3); }
+    .btn-outline {
+      padding: 13px 28px; background: transparent; color: #888;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      font-size: 0.9375rem; font-weight: 600; text-decoration: none;
+      transition: all 0.15s; display: inline-flex; align-items: center;
+    }
+    .btn-outline:hover { color: #fff; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
 
-            /* ---- Section header ---- */
-            .section-header {
-                text-align: center;
-                margin-bottom: 64px;
-            }
-            .section-header h2 {
-                font-size: 2.25rem;
-                font-weight: 800;
-                margin-bottom: 16px;
-                letter-spacing: -0.02em;
-            }
-            .section-header p {
-                color: #94a3b8;
-                font-size: 1.05rem;
-                max-width: 540px;
-                margin: 0 auto;
-            }
+    .hero-stats {
+      display: flex; gap: 48px; margin-top: 64px;
+      padding-top: 48px; border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .hero-stat-val { font-size: 1.875rem; font-weight: 800; color: #c8f135; letter-spacing: -0.03em; }
+    .hero-stat-label { font-size: 0.75rem; color: #555; margin-top: 4px; font-weight: 500; }
 
-            /* ---- Features grid ---- */
-            .features-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 24px;
-            }
-            .feature-card {
-                background: rgba(15, 23, 42, 0.6);
-                backdrop-filter: blur(12px);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 16px;
-                padding: 32px;
-                transition: all 0.25s;
-            }
-            .feature-card:hover {
-                background: rgba(15, 23, 42, 0.85);
-                border-color: rgba(255, 255, 255, 0.12);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                transform: translateY(-2px);
-            }
-            .feature-icon {
-                font-size: 2rem;
-                margin-bottom: 16px;
-            }
-            .feature-card h3 {
-                font-size: 1.1rem;
-                font-weight: 700;
-                margin-bottom: 8px;
-            }
-            .feature-card p {
-                font-size: 0.9rem;
-                color: #94a3b8;
-                line-height: 1.6;
-            }
+    /* Sections */
+    section { padding: 96px 0; }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+    .section-header p { color: #888; font-size: 1rem; max-width: 480px; margin: 0 auto; }
 
-            /* ---- Vaults ---- */
-            .vaults-table {
-                width: 100%;
-                background: rgba(15, 23, 42, 0.5);
-                backdrop-filter: blur(12px);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 16px;
-                overflow: hidden;
-            }
-            .vaults-table table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            .vaults-table th {
-                text-align: left;
-                padding: 16px 24px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: #64748b;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            }
-            .vaults-table td {
-                padding: 18px 24px;
-                font-size: 0.95rem;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            }
-            .vaults-table tr:last-child td {
-                border-bottom: none;
-            }
-            .vaults-table tr:hover td {
-                background: rgba(255, 255, 255, 0.02);
-            }
-            .vault-symbol {
-                font-weight: 700;
-            }
-            .vault-apy {
-                color: #10b981;
-                font-weight: 700;
-            }
-            .chain-pill {
-                display: inline-flex;
-                padding: 3px 10px;
-                border-radius: 100px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                background: rgba(139, 92, 246, 0.12);
-                color: #a78bfa;
-            }
+    /* Features */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .feature-card {
+      background: #111; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; padding: 28px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .feature-card:hover { background: #161616; border-color: rgba(255,255,255,0.1); }
+    .feature-icon { font-size: 1.5rem; margin-bottom: 14px; color: #c8f135; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 0.875rem; color: #888; line-height: 1.6; }
 
-            /* ---- Steps ---- */
-            .steps {
-                display: flex;
-                flex-direction: column;
-                gap: 32px;
-                max-width: 640px;
-                margin: 0 auto;
-            }
-            .step {
-                display: flex;
-                gap: 24px;
-                align-items: flex-start;
-                padding: 28px;
-                background: rgba(15, 23, 42, 0.5);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 16px;
-                transition: all 0.2s;
-            }
-            .step:hover {
-                border-color: rgba(255, 255, 255, 0.12);
-                background: rgba(15, 23, 42, 0.75);
-            }
-            .step-num {
-                font-size: 2rem;
-                font-weight: 900;
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                min-width: 52px;
-            }
-            .step h3 {
-                font-size: 1.1rem;
-                font-weight: 700;
-                margin-bottom: 6px;
-            }
-            .step p {
-                font-size: 0.9rem;
-                color: #94a3b8;
-            }
+    /* Vaults table */
+    .vaults-wrap {
+      background: #111; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; padding: 14px 20px;
+      font-size: 0.6875rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: #555; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    td { padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .vault-sym { font-weight: 700; }
+    .vault-apy { color: #c8f135; font-weight: 700; }
+    .chain-pill {
+      display: inline-flex; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+      background: rgba(255,255,255,0.06); color: #888;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .risk-bar { display: flex; gap: 2px; }
+    .risk-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.08); }
+    .risk-dot.on { background: #c8f135; }
+    .risk-dot.on.med { background: #f59e0b; }
+    .risk-dot.on.hi  { background: #ef4444; }
 
-            /* ---- CTA section ---- */
-            .cta-section {
-                text-align: center;
-                padding: 80px 40px;
-                background: rgba(15, 23, 42, 0.5);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 24px;
-                position: relative;
-                overflow: hidden;
-            }
-            .cta-section::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 2px;
-                background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
-            }
-            .cta-section h2 {
-                font-size: 2rem;
-                font-weight: 800;
-                margin-bottom: 12px;
-            }
-            .cta-section p {
-                color: #94a3b8;
-                margin-bottom: 32px;
-                font-size: 1.05rem;
-            }
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 16px; max-width: 600px; margin: 0 auto; }
+    .step {
+      display: flex; gap: 20px; align-items: flex-start;
+      padding: 24px; background: #111; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; transition: border-color 0.2s;
+    }
+    .step:hover { border-color: rgba(200,241,53,0.2); }
+    .step-num { font-size: 1.75rem; font-weight: 900; color: #c8f135; min-width: 48px; letter-spacing: -0.04em; }
+    .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .step p { font-size: 0.875rem; color: #888; }
 
-            /* ---- Footer ---- */
-            footer {
-                padding: 48px 0;
-                text-align: center;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
-                font-size: 0.85rem;
-                color: #64748b;
-            }
-            footer a {
-                color: #60a5fa;
-                text-decoration: none;
-            }
-            footer a:hover {
-                text-decoration: underline;
-            }
+    /* CTA */
+    .cta-box {
+      text-align: center; padding: 72px 40px;
+      background: #111; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px; position: relative; overflow: hidden;
+    }
+    .cta-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 2px; background: #c8f135; opacity: 0.5;
+    }
+    .cta-box h2 { font-size: 1.875rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 10px; }
+    .cta-box p { color: #888; margin-bottom: 32px; }
 
-            /* ---- Responsive ---- */
-            @media (max-width: 768px) {
-                .nav-links {
-                    display: none;
-                }
-                .hero-stats {
-                    flex-direction: column;
-                    gap: 24px;
-                }
-                .features-grid {
-                    grid-template-columns: 1fr;
-                }
-                .vaults-table {
-                    overflow-x: auto;
-                }
-                .step {
-                    flex-direction: column;
-                    gap: 12px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <!-- Nav -->
-        <nav>
-            <div class="container nav-inner">
-                <div class="nav-logo">
-                    <div class="nav-logo-icon">W</div>
-                    <span class="nav-logo-text">WealthOS</span>
-                </div>
-                <div class="nav-links">
-                    <a href="#features">Features</a>
-                    <a href="#vaults">Vaults</a>
-                    <a href="#how">How it Works</a>
-                    <a
-                        href="/dashboard"
-                        class="btn btn-primary"
-                        style="padding: 8px 20px; font-size: 0.85rem;"
-                        >Launch App →</a
-                    >
-                </div>
-            </div>
-        </nav>
+    /* Footer */
+    footer { padding: 40px 0; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8125rem; color: #555; }
+    footer a { color: #c8f135; text-decoration: none; }
 
-        <!-- Hero -->
-        <section class="hero">
-            <div class="container">
-                <div class="hero-badge">
-                    <div class="hero-badge-dot"></div>
-                    Powered by YO Protocol
-                </div>
-                <h1>
-                    Set your goals once.<br />
-                    <span class="gradient">WealthOS handles the rest.</span>
-                </h1>
-                <p class="hero-sub">
-                    The intelligent financial OS that unifies your savings, DeFi
-                    yield, and AI automation in a single dashboard. No DeFi
-                    experience needed.
-                </p>
-                <div class="hero-ctas">
-                    <a href="/dashboard" class="btn btn-primary"
-                        >Launch Dashboard →</a
-                    >
-                    <a href="#how" class="btn btn-outline">See how it works</a>
-                </div>
-                <div class="hero-stats">
-                    <div>
-                        <div class="hero-stat-val">$45.2M+</div>
-                        <div class="hero-stat-label">Total Value Locked</div>
-                    </div>
-                    <div>
-                        <div class="hero-stat-val">8.42%</div>
-                        <div class="hero-stat-label">Top Vault APY</div>
-                    </div>
-                    <div>
-                        <div class="hero-stat-val">6</div>
-                        <div class="hero-stat-label">ERC-4626 Vaults</div>
-                    </div>
-                    <div>
-                        <div class="hero-stat-val">2</div>
-                        <div class="hero-stat-label">Chains Supported</div>
-                    </div>
-                </div>
-            </div>
-        </section>
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero-stats { flex-direction: column; gap: 20px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .hero-ctas { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
 
-        <!-- Features -->
-        <section id="features">
-            <div class="container">
-                <div class="section-header">
-                    <h2>Everything you need to grow your wealth</h2>
-                    <p>
-                        Three layers working together — savings app, AI agent,
-                        and portfolio dashboard.
-                    </p>
-                </div>
-                <div class="features-grid">
-                    {
-                        features.map((f) => (
-                            <div class="feature-card">
-                                <div class="feature-icon">{f.icon}</div>
-                                <h3>{f.title}</h3>
-                                <p>{f.desc}</p>
-                            </div>
-                        ))
-                    }
-                </div>
-            </div>
-        </section>
+  <nav>
+    <div class="container nav-inner">
+      <div class="nav-logo">
+        <div class="nav-logo-icon">V</div>
+        <span class="nav-logo-text">vyo</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#vaults">Vaults</a>
+        <a href="#how">How it Works</a>
+        <a href="/dashboard" class="btn-nav">Launch App →</a>
+      </div>
+    </div>
+  </nav>
 
-        <!-- Vaults -->
-        <section id="vaults">
-            <div class="container">
-                <div class="section-header">
-                    <h2>YO Protocol Vaults</h2>
-                    <p>
-                        Audited, non-custodial ERC-4626 vaults across Ethereum
-                        and Base.
-                    </p>
-                </div>
-                <div class="vaults-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Vault</th>
-                                <th>Underlying</th>
-                                <th>APY</th>
-                                <th>Chain</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {
-                                vaults.map((v) => (
-                                    <tr>
-                                        <td class="vault-symbol">{v.symbol}</td>
-                                        <td>{v.underlying}</td>
-                                        <td class="vault-apy">{v.apy}</td>
-                                        <td>
-                                            <span class="chain-pill">
-                                                {v.chain}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <div class="hero-badge-dot"></div>
+        Powered by YO Protocol
+      </div>
+      <h1>
+        Set your goals once.<br />
+        <span class="lime">Vyo handles the rest.</span>
+      </h1>
+      <p class="hero-sub">
+        The AI-powered DeFi yield optimizer that unifies your savings, vault positions,
+        and automation in a single dashboard.
+      </p>
+      <div class="hero-ctas">
+        <a href="/dashboard" class="btn-primary">Launch Dashboard →</a>
+        <a href="#how" class="btn-outline">See how it works</a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-val">$45.2M+</div>
+          <div class="hero-stat-label">Total Value Locked</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">8.42%</div>
+          <div class="hero-stat-label">Top Vault APY</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">6</div>
+          <div class="hero-stat-label">ERC-4626 Vaults</div>
+        </div>
+        <div>
+          <div class="hero-stat-val">2</div>
+          <div class="hero-stat-label">Chains</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        <!-- How it Works -->
-        <section id="how">
-            <div class="container">
-                <div class="section-header">
-                    <h2>How WealthOS works</h2>
-                    <p>Three simple steps to start growing your savings.</p>
-                </div>
-                <div class="steps">
-                    {
-                        steps.map((s) => (
-                            <div class="step">
-                                <div class="step-num">{s.num}</div>
-                                <div>
-                                    <h3>{s.title}</h3>
-                                    <p>{s.desc}</p>
-                                </div>
-                            </div>
-                        ))
-                    }
-                </div>
-            </div>
-        </section>
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Everything you need to grow your wealth</h2>
+        <p>Savings app, AI agent, and portfolio dashboard — all in one.</p>
+      </div>
+      <div class="features-grid">
+        {features.map(f => (
+          <div class="feature-card">
+            <div class="feature-icon">{f.icon}</div>
+            <h3>{f.title}</h3>
+            <p>{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 
-        <!-- CTA -->
-        <section>
-            <div class="container">
-                <div class="cta-section">
-                    <h2>Ready to put your money to work?</h2>
-                    <p>
-                        Join WealthOS and start earning yield on your savings
-                        today.
-                    </p>
-                    <a href="/dashboard" class="btn btn-primary"
-                        >Launch Dashboard →</a
-                    >
-                </div>
-            </div>
-        </section>
+  <!-- Vaults -->
+  <section id="vaults">
+    <div class="container">
+      <div class="section-header">
+        <h2>YO Protocol Vaults</h2>
+        <p>Audited, non-custodial ERC-4626 vaults across Ethereum and Base.</p>
+      </div>
+      <div class="vaults-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vault</th>
+              <th>Underlying</th>
+              <th>APY</th>
+              <th>Chain</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vaults.map(v => (
+              <tr>
+                <td class="vault-sym">{v.symbol}</td>
+                <td style="color:#888;">{v.underlying}</td>
+                <td class="vault-apy">{v.apy}</td>
+                <td><span class="chain-pill">{v.chain}</span></td>
+                <td>
+                  <div class="risk-bar">
+                    {Array.from({length: 6}, (_, i) => (
+                      <div class={`risk-dot ${i < v.risk ? `on ${v.risk <= 2 ? '' : v.risk <= 4 ? 'med' : 'hi'}` : ''}`}></div>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
-        <!-- Footer -->
-        <footer>
-            <div class="container">
-                <p>
-                    WealthOS · Built with <a
-                        href="https://yo.xyz"
-                        target="_blank">YO Protocol SDK</a
-                    > · YO SDK Hackathon 2026
-                </p>
-            </div>
-        </footer>
-    </body>
+  <!-- How it Works -->
+  <section id="how">
+    <div class="container">
+      <div class="section-header">
+        <h2>How Vyo works</h2>
+        <p>Three steps to start growing your savings.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <div>
+            <h3>Tell us your goal</h3>
+            <p>"Save $15,000 for a new car by June 2026"</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <div>
+            <h3>AI picks the best vaults</h3>
+            <p>Vyo splits your deposit across YO Protocol vaults based on your risk profile and timeline.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <div>
+            <h3>Watch your money grow</h3>
+            <p>Track progress in real-time. Approve or dismiss AI suggestions anytime.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section>
+    <div class="container">
+      <div class="cta-box">
+        <h2>Ready to put your money to work?</h2>
+        <p>Start earning yield on your savings today.</p>
+        <a href="/dashboard" class="btn-primary">Launch Dashboard →</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>Vyo · Built with <a href="https://yo.xyz" target="_blank">YO Protocol SDK</a> · YO SDK Hackathon 2026</p>
+    </div>
+  </footer>
+
+</body>
 </html>
