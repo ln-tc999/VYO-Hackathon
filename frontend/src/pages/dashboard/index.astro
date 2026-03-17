@@ -74,6 +74,20 @@ import RiskBar from "../../components/ui/RiskBar.astro";
   .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .goals-mini { display: flex; flex-direction: column; gap: 6px; }
 
+  /* Vaults mini */
+  .dash-vaults-mini { display: flex; flex-direction: column; gap: 6px; }
+  .dvm-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 11px; padding: 9px 12px;
+    text-decoration: none; color: inherit;
+    transition: border-color 0.15s;
+  }
+  .dvm-row:hover { border-color: rgba(200,241,53,0.3); }
+  .dvm-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #222; flex-shrink: 0; }
+  .dvm-name { font-size: var(--font-sm); font-weight: 700; flex: 1; }
+  .dvm-apy  { font-size: var(--font-sm); font-weight: 800; color: var(--lime); }
+
   /* Responsive */
   @media (max-width: 960px) {
     .dash-wrap { grid-template-columns: 1fr; }
@@ -160,6 +174,14 @@ import RiskBar from "../../components/ui/RiskBar.astro";
     <div>
       <SectionHeader title="Goals" href="/dashboard/goals" />
       <div class="goals-mini" id="goals-mini">
+        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Top Vaults mini -->
+    <div>
+      <SectionHeader title="Top Vaults" href="/dashboard/vaults" />
+      <div class="dash-vaults-mini" id="dash-vaults-mini">
         <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
       </div>
     </div>
@@ -378,10 +400,35 @@ async function loadDashboard() {
   }
 }
 
+async function loadVaultsMini() {
+  try {
+    const res  = await fetch(`${API}/vaults`);
+    const json = await res.json();
+    if (!json.success) return;
+    const top = [...json.data]
+      .sort((a: any, b: any) => b.apy - a.apy)
+      .slice(0, 4);
+    const el = document.getElementById("dash-vaults-mini")!;
+    if (!top.length) {
+      el.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No vaults</div>`;
+      return;
+    }
+    el.innerHTML = top.map((v: any) => `
+      <a class="dvm-row" href="/dashboard/vaults">
+        <img class="dvm-logo" src="${v.logoUrl}" alt="${v.symbol}" onerror="this.src='/assets/yoUSD.png'">
+        <span class="dvm-name">${v.symbol}</span>
+        <span class="dvm-apy">${v.apy.toFixed(2)}%</span>
+      </a>`).join('');
+  } catch(err) {
+    console.error("Vaults mini load failed:", err);
+  }
+}
+
 chartData = generateChartData(currentRange);
 drawChart(chartData);
 window.addEventListener("resize", () => drawChart(chartData));
 loadDashboard();
+loadVaultsMini();
 </script>
 
 </MainLayout>
