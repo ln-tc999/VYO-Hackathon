@@ -1,5 +1,5 @@
 ---
-import NavWalletIsland from '../wallet/NavWalletIsland.js';
+import WalletButton from '../wallet/WalletButton.tsx';
 
 interface Props {
   activePage?: string;
@@ -37,7 +37,7 @@ const links = [
     </div>
 
     <div style="display:flex;align-items:center;">
-      <NavWalletIsland client:only="react" />
+      <WalletButton client:only="react" />
     </div>
 
     <div class="topnav-notif" aria-label="Notifications">
