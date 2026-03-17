@@ -4,40 +4,17 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
 <MainLayout title="Portfolio" activePage="settings">
 <style>
-  .port-wrap { padding: 28px 28px; width: 100%; box-sizing: border-box; }
+  .port-wrap { padding: 28px; width: 100%; box-sizing: border-box; }
 
-  /* Header */
-  .port-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
+  .port-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
   .port-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
   .port-subtitle { font-size: 0.8125rem; color: #555; margin-top: 4px; }
-  .port-updated { font-size: 0.75rem; color: #555; text-align: right; }
+  .port-updated { font-size: 0.75rem; color: #555; }
 
-  /* Summary cards row */
-  .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-  .sum-card {
-    background: #111; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 18px 20px;
-  }
-  .sum-label { font-size: 0.6875rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-  .sum-val { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
-  .sum-val.pos { color: #c8f135; }
-  .sum-val.neg { color: #ef4444; }
-  .sum-val.white { color: #fff; }
-  .sum-sub { font-size: 0.6875rem; color: #555; margin-top: 4px; }
-  .sum-sub.pos { color: #c8f135; }
-  .sum-sub.neg { color: #ef4444; }
-
-  /* 2-col body */
   .port-body { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
 
-  /* Allocation donut + legend */
-  .alloc-card {
-    background: #111; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 22px 24px;
-  }
-  .card-title { font-size: 0.9375rem; font-weight: 700; margin-bottom: 18px; }
-
-  .alloc-inner { display: flex; align-items: center; gap: 28px; }
+  .alloc-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; }
+  .alloc-inner { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
   .donut-wrap { position: relative; flex-shrink: 0; width: 140px; height: 140px; }
   .donut-wrap svg { width: 140px; height: 140px; }
   .donut-center {
@@ -48,20 +25,14 @@ import MainLayout from "../../layouts/MainLayout.astro";
   .donut-center-val { font-size: 1.125rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
   .donut-center-label { font-size: 0.625rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
-  .alloc-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .alloc-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 160px; }
   .legend-row { display: flex; align-items: center; gap: 10px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .legend-name { font-size: 0.8125rem; color: #aaa; flex: 1; }
   .legend-pct { font-size: 0.8125rem; font-weight: 700; color: #fff; }
   .legend-val { font-size: 0.75rem; color: #555; min-width: 60px; text-align: right; }
 
-  /* Goals progress */
-  .goals-card {
-    background: #111; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 22px 24px;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .goal-row {}
+  .goals-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
   .goal-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .goal-row-name { font-size: 0.8125rem; font-weight: 600; }
   .goal-row-pct { font-size: 0.8125rem; font-weight: 700; color: #c8f135; }
@@ -69,18 +40,9 @@ import MainLayout from "../../layouts/MainLayout.astro";
   .goal-row-fill { height: 100%; border-radius: 999px; background: #c8f135; }
   .goal-row-meta { display: flex; justify-content: space-between; font-size: 0.6875rem; color: #555; }
 
-  /* Positions table */
-  .positions-card {
-    background: #111; border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 22px 24px;
-    margin-top: 16px;
-  }
-  .pos-table { width: 100%; border-collapse: collapse; }
-  .pos-table th {
-    font-size: 0.6875rem; font-weight: 600; color: #555;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    padding: 0 0 12px; text-align: left;
-  }
+  .positions-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; margin-top: 16px; overflow-x: auto; }
+  .pos-table { width: 100%; border-collapse: collapse; min-width: 480px; }
+  .pos-table th { font-size: 0.6875rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 0 12px; text-align: left; }
   .pos-table th:not(:first-child) { text-align: right; }
   .pos-table td { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8125rem; }
   .pos-table td:not(:first-child) { text-align: right; }
@@ -88,15 +50,15 @@ import MainLayout from "../../layouts/MainLayout.astro";
   .pos-vault-sub { font-size: 0.6875rem; color: #555; margin-top: 2px; }
   .pos-apy { color: #c8f135; font-weight: 700; }
   .pos-gain { color: #c8f135; font-weight: 600; }
-  .pos-badge {
-    display: inline-block; padding: 2px 8px; border-radius: 999px;
-    font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  }
+  .pos-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .pos-badge.active { background: rgba(200,241,53,0.12); color: #c8f135; }
 
   @media (max-width: 900px) {
-    .summary-row { grid-template-columns: repeat(2,1fr); }
     .port-body { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .port-wrap { padding: 16px; }
+    .alloc-inner { flex-direction: column; align-items: flex-start; }
   }
 </style>
 
