@@ -1,5 +1,8 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import StatBox from "../../components/ui/StatBox.astro";
+import SectionHeader from "../../components/ui/SectionHeader.astro";
+import RiskBar from "../../components/ui/RiskBar.astro";
 ---
 
 <MainLayout title="Dashboard" activePage="dashboard">
@@ -68,9 +71,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
   .risk-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
   .risk-bar-wrap { margin: 14px 0 6px; }
 
-  /* Transaction 2-col grid */
   .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
   .goals-mini { display: flex; flex-direction: column; gap: 6px; }
 
   /* Responsive */
@@ -122,26 +123,10 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
     <!-- Stats row -->
     <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-box-label">Realized P&L</div>
-        <div class="stat-box-val pos" id="s-today">$0.00</div>
-        <div class="stat-box-sub pos" id="s-today-pct">+0% Today</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-box-label">Unrealized P&L</div>
-        <div class="stat-box-val neg" id="s-unrealized">$0.00</div>
-        <div class="stat-box-sub neg" id="s-unrealized-pct">0% Today</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-box-label">Projected Growth</div>
-        <div class="stat-box-val pos" id="s-projected">$0.00</div>
-        <div class="stat-box-sub pos" id="s-projected-pct">+0% Today</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-box-label">Net Change</div>
-        <div class="stat-box-val pos" id="s-net">$0.00</div>
-        <div class="stat-box-sub neg" id="s-net-pct">0% Today</div>
-      </div>
+      <StatBox label="Realized P&L"     id="s-today"     subId="s-today-pct"     valClass="pos" subClass="pos" value="$0.00" sub="+0% Today" />
+      <StatBox label="Unrealized P&L"   id="s-unrealized" subId="s-unrealized-pct" valClass="neg" subClass="neg" value="$0.00" sub="0% Today" />
+      <StatBox label="Projected Growth" id="s-projected"  subId="s-projected-pct" valClass="pos" subClass="pos" value="$0.00" sub="+0% Today" />
+      <StatBox label="Net Change"       id="s-net"        subId="s-net-pct"       valClass="pos" subClass="neg" value="$0.00" sub="0% Today" />
     </div>
 
   </div>
@@ -159,19 +144,13 @@ import MainLayout from "../../layouts/MainLayout.astro";
         </div>
       </div>
       <div class="risk-bar-wrap">
-        <div class="risk-bar-track">
-          <div class="risk-bar-fill" id="risk-fill" style="width:40%;"></div>
-        </div>
+        <RiskBar value={40} fillId="risk-fill" />
       </div>
-      <div class="risk-labels"><span>Low Risk</span><span>High Risk</span></div>
     </div>
 
     <!-- Transactions -->
     <div>
-      <div class="section-hdr">
-        <span class="section-hdr-title">Transactions</span>
-        <a href="/dashboard/goals" class="view-all">View All</a>
-      </div>
+      <SectionHeader title="Transactions" href="/dashboard/goals" />
       <div class="txn-grid" id="txn-grid">
         <div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">Loading...</div>
       </div>
@@ -179,10 +158,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
     <!-- Goals mini -->
     <div>
-      <div class="section-hdr">
-        <span class="section-hdr-title">Goals</span>
-        <a href="/dashboard/goals" class="view-all">View All</a>
-      </div>
+      <SectionHeader title="Goals" href="/dashboard/goals" />
       <div class="goals-mini" id="goals-mini">
         <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
       </div>
@@ -239,7 +215,6 @@ function drawChart(data: number[], hoverIdx = -1) {
   const px = (i: number) => (i / (data.length - 1)) * W;
   const py = (v: number) => H - padY - ((v - min) / rng) * (H - padY * 2);
 
-  // Vertical grid lines
   ctx.strokeStyle = "rgba(255,255,255,0.04)";
   ctx.lineWidth = 1;
   for(let i = 0; i <= 20; i++){
@@ -247,7 +222,6 @@ function drawChart(data: number[], hoverIdx = -1) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
   }
 
-  // Gradient fill
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, "rgba(200,241,53,0.18)");
   grad.addColorStop(1, "rgba(200,241,53,0)");
@@ -259,7 +233,6 @@ function drawChart(data: number[], hoverIdx = -1) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Line
   ctx.beginPath();
   ctx.strokeStyle = "#c8f135";
   ctx.lineWidth = 2;
@@ -268,7 +241,6 @@ function drawChart(data: number[], hoverIdx = -1) {
   data.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
   ctx.stroke();
 
-  // Hover
   if(hoverIdx >= 0 && hoverIdx < data.length){
     const hx = px(hoverIdx), hy = py(data[hoverIdx]);
     ctx.beginPath();
@@ -321,12 +293,10 @@ async function loadDashboard() {
     if(!json.success) return;
     const d = json.data;
 
-    // Wallet value
     document.getElementById("wallet-value")!.textContent = fmt(d.totalNetWorth);
     const pct = d.defiBalance > 0 ? ((d.totalYieldEarned / d.defiBalance) * 100).toFixed(1) : "4.6";
     document.getElementById("wallet-change-val")!.textContent = `+${pct}%`;
 
-    // Stats
     document.getElementById("s-today")!.textContent = fmt(d.yieldToday);
     document.getElementById("s-today-pct")!.textContent = `+${((d.yieldToday / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
     document.getElementById("s-unrealized")!.textContent = fmt(-d.yieldToday * 0.36);
@@ -336,10 +306,8 @@ async function loadDashboard() {
     document.getElementById("s-net")!.textContent = fmt(d.totalYieldEarned);
     document.getElementById("s-net-pct")!.textContent = `-${((d.yieldToday * 0.1 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
 
-    // Risk bar solid lime
     document.getElementById("risk-fill")!.style.width = "40%";
 
-    // Transactions — 2-col grid, card per transaksi dengan sparkline
     const txns = d.recentDecisions.slice(0, 6);
     const icons: Record<string,string> = { rebalance:"⇄", deposit_suggestion:"↓", goal_forecast:"◎", risk_alert:"⚠" };
     const grid = document.getElementById("txn-grid")!;
@@ -367,12 +335,11 @@ async function loadDashboard() {
         const statusIcon = status === "confirmed" ? "✓" : status === "failed" ? "✕" : "◷";
         const typeLabel = t.type.replace(/_/g," ").replace(/\b\w/g, (c: string) => c.toUpperCase());
         const dateStr = new Date(t.createdAt).toLocaleDateString("en-US",{day:"2-digit",month:"2-digit",year:"numeric"});
-        const strokeColor = isLime ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.4)";        return `
+        const strokeColor = isLime ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.4)";
+        return `
           <div class="txn-card ${isLime ? "lime" : ""}">
             <div class="txn-top">
-              <div class="txn-icon">
-                ${icons[t.type]||"◎"}
-              </div>
+              <div class="txn-icon">${icons[t.type]||"◎"}</div>
               <div class="txn-meta">
                 <div class="txn-type">${typeLabel}</div>
                 <div class="txn-date">${dateStr}</div>
@@ -390,7 +357,6 @@ async function loadDashboard() {
       }).join("");
     }
 
-    // Goals mini
     const goalsMini = document.getElementById("goals-mini")!;
     if(d.goalSummaries.length === 0) {
       goalsMini.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
@@ -412,7 +378,6 @@ async function loadDashboard() {
   }
 }
 
-// Init
 chartData = generateChartData(currentRange);
 drawChart(chartData);
 window.addEventListener("resize", () => drawChart(chartData));
