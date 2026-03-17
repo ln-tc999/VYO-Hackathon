@@ -1,9 +1,11 @@
 ---
+import Topnav from '../components/layout/Topnav.astro';
+
 interface Props {
   title: string;
   activePage?: string;
 }
-const { title, activePage = "dashboard" } = Astro.props;
+const { title, activePage = 'dashboard' } = Astro.props;
 ---
 
 <!doctype html>
@@ -15,134 +17,11 @@ const { title, activePage = "dashboard" } = Astro.props;
   <link rel="icon" type="image/svg+xml"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23c8f135'/><text y='23' x='5' font-size='18' font-weight='900' fill='%23000'>V</text></svg>" />
   <link rel="stylesheet" href="/src/styles/global.css" />
-  <style>
-    /* ── Topnav ── */
-    .topnav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-      height: 80px;
-      background: #0a0a0a;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
-      display: flex; align-items: center;
-      padding: 0 32px;
-      gap: 0;
-    }
-
-    .topnav-logo {
-      display: flex; align-items: center; gap: 10px;
-      margin-right: 48px; flex-shrink: 0;
-    }
-    .topnav-logo-icon {
-      width: 36px; height: 36px;
-      background: #c8f135; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.0625rem; font-weight: 900; color: #000;
-    }
-    .topnav-logo-text {
-      font-size: 1.1875rem; font-weight: 800; color: #fff; letter-spacing: -0.3px;
-    }
-
-    .topnav-links {
-      display: flex; align-items: center; gap: 2px; flex: 1;
-    }
-    .topnav-link {
-      padding: 9px 17px;
-      border-radius: 10px;
-      font-size: 0.9375rem; font-weight: 500;
-      color: #666;
-      text-decoration: none;
-      transition: color 0.15s, background 0.15s;
-      white-space: nowrap;
-      display: flex; align-items: center; gap: 5px;
-    }
-    .topnav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
-    .topnav-link.active { color: #fff; font-weight: 600; }
-
-    .topnav-right {
-      display: flex; align-items: center; gap: 10px; margin-left: auto;
-    }
-
-    .topnav-search {
-      display: flex; align-items: center; gap: 8px;
-      padding: 9px 17px;
-      background: #161616; border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px; cursor: pointer;
-      color: #555; font-size: 0.9375rem;
-      transition: border-color 0.15s;
-    }
-    .topnav-search:hover { border-color: rgba(255,255,255,0.15); color: #888; }
-
-    .topnav-wallet {
-      display: flex; align-items: center; gap: 8px;
-      padding: 9px 17px;
-      background: #161616; border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px; cursor: pointer;
-      font-size: 0.9375rem; font-weight: 500; color: #ccc;
-      transition: border-color 0.15s;
-      max-width: 220px;
-    }
-    .topnav-wallet:hover { border-color: rgba(255,255,255,0.2); }
-    .topnav-wallet-addr {
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-
-    .topnav-notif {
-      width: 42px; height: 42px;
-      background: #161616; border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; color: #666; font-size: 1rem;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .topnav-notif:hover { border-color: rgba(255,255,255,0.2); color: #ccc; }
-
-    /* ── Page body ── */
-    .page-body {
-      margin-top: 80px;
-      min-height: calc(100vh - 80px);
-    }
-
-    /* ── Mobile ── */
-    @media (max-width: 768px) {
-      .topnav-links { display: none; }
-      .topnav-search { display: none; }
-      .topnav-wallet-addr { max-width: 100px; }
-    }
-  </style>
 </head>
 <body>
-
-  <!-- Top Navbar -->
-  <header class="topnav">
-    <div class="topnav-logo">
-      <div class="topnav-logo-icon">V</div>
-      <span class="topnav-logo-text">vyo</span>
-    </div>
-
-    <nav class="topnav-links">
-      <a href="/dashboard"          class={`topnav-link ${activePage === "dashboard" ? "active" : ""}`}>Dashboard</a>
-      <a href="/dashboard/vaults"   class={`topnav-link ${activePage === "vaults"    ? "active" : ""}`}>Vaults</a>
-      <a href="/dashboard/goals"    class={`topnav-link ${activePage === "goals"     ? "active" : ""}`}>Goals</a>
-      <a href="/dashboard/ai"       class={`topnav-link ${activePage === "ai"        ? "active" : ""}`}>AI Agent</a>
-      <a href="/dashboard/settings" class={`topnav-link ${activePage === "settings"  ? "active" : ""}`}>Portfolio</a>
-    </nav>
-
-    <div class="topnav-right">
-      <div class="topnav-search">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      </div>
-      <div class="topnav-wallet" id="wallet-btn">
-        <span style="font-size:1rem;">🦊</span>
-        <span class="topnav-wallet-addr" id="wallet-status">Connect Wallet</span>
-      </div>
-      <div class="topnav-notif">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </div>
-    </div>
-  </header>
-
-  <!-- Page Content -->
+  <Topnav activePage={activePage} />
   <div class="page-body">
     <slot />
   </div>
-
 </body>
 </html>
