@@ -3,6 +3,7 @@ import react from '@astrojs/react';
 
 export default defineConfig({
     server: { port: 4321 },
+    publicDir: './src/public',
     integrations: [react()],
     vite: {
         server: {
