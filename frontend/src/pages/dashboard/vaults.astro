@@ -126,9 +126,11 @@ import MainLayout from "../../layouts/MainLayout.astro";
   function sortVaults(sort, btn) {
     currentSort = sort;
     document.querySelectorAll(".sort-btn").forEach(b => {
-      b.style.color = "var(--text-muted)"; b.style.fontWeight = "500";
+      (b as HTMLElement).style.color = "var(--text-muted)";
+      (b as HTMLElement).style.fontWeight = "500";
     });
-    btn.style.color = "var(--lime)"; btn.style.fontWeight = "600";
+    (btn as HTMLElement).style.color = "var(--lime)";
+    (btn as HTMLElement).style.fontWeight = "600";
     applyFiltersAndSort();
   }
 
