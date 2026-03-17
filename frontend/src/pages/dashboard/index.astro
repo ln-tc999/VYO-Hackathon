@@ -47,15 +47,75 @@ import RiskBar from "../../components/ui/RiskBar.astro";
     border-radius: 14px; padding: 16px 16px 10px;
     position: relative; overflow: hidden; flex: 1; min-height: 200px;
   }
+  /* Chart styles */
+  .chart-container { position: relative; }
   .chart-tooltip {
-    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 8px; pointer-events: none;
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    background: rgba(22, 22, 22, 0.95);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 8px 14px;
+    backdrop-filter: blur(8px);
+    z-index: 10;
   }
   .chart-tooltip-dot {
-    width: 11px; height: 11px; border-radius: 50%; background: #c8f135;
-    border: 2px solid #0a0a0a; box-shadow: 0 0 8px rgba(200,241,53,0.6);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c8f135;
+    border: 2px solid #0a0a0a;
+    box-shadow: 0 0 12px rgba(200,241,53,0.6);
   }
-  .chart-tooltip-val { font-size: 0.875rem; font-weight: 700; color: #fff; }
+  .chart-tooltip-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Roboto', sans-serif;
+  }
+  .chart-tooltip-date {
+    font-size: 0.75rem;
+    color: #888;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.1);
+  }
+  .chart-legend {
+    position: absolute;
+    bottom: 12px;
+    left: 16px;
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: #555;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chart-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .chart-crosshair-label {
+    position: absolute;
+    top: 8px;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    color: #888;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
   canvas#chart { width: 100%; display: block; }
 
   .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
@@ -74,19 +134,46 @@ import RiskBar from "../../components/ui/RiskBar.astro";
   .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .goals-mini { display: flex; flex-direction: column; gap: 6px; }
 
-  /* Vaults mini */
-  .dash-vaults-mini { display: flex; flex-direction: column; gap: 6px; }
-  .dvm-row {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg-input); border: 1px solid var(--border);
-    border-radius: 11px; padding: 9px 12px;
-    text-decoration: none; color: inherit;
-    transition: border-color 0.15s;
+  /* Vaults mini - Single rotating card */
+  .dash-vaults-mini { position: relative; overflow: hidden; }
+  .vault-single {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 13px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    min-height: 175px;
   }
-  .dvm-row:hover { border-color: rgba(200,241,53,0.3); }
-  .dvm-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #222; flex-shrink: 0; }
-  .dvm-name { font-size: var(--font-sm); font-weight: 700; flex: 1; }
-  .dvm-apy  { font-size: var(--font-sm); font-weight: 800; color: var(--lime); }
+  .vault-single::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 0; background: #c9f235;
+    transition: height 0.35s ease; z-index: 0; border-radius: 16px;
+  }
+  .vault-single:hover { border-color: rgba(200,241,53,0.35); }
+  .vault-single:hover::before { height: 100%; }
+  .vault-single:hover .vault-single-symbol { color: #000; }
+  .vault-single:hover .vault-single-name { color: rgba(0,0,0,0.6); }
+  .vault-single:hover .vault-single-apy-val { color: #000; }
+  .vault-single:hover .vault-single-apy-label { color: rgba(0,0,0,0.6); }
+  .vault-single:hover .vault-single-chart svg path { stroke: rgba(0,0,0,0.4); }
+  .vault-single > * { position: relative; z-index: 1; }
+  .vault-single-top { display: flex; align-items: center; gap: 12px; }
+  .vault-single-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #222; flex-shrink: 0; }
+  .vault-single-info { flex: 1; min-width: 0; }
+  .vault-single-symbol { font-size: var(--font-base); font-weight: 700; transition: color 0.35s ease; }
+  .vault-single-name { font-size: var(--font-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.35s ease; }
+  .vault-single-apy { text-align: right; }
+  .vault-single-apy-val { font-size: var(--font-xl); font-weight: 900; color: var(--lime); transition: color 0.35s ease; }
+  .vault-single-apy-label { font-size: var(--font-xs); color: var(--text-muted); font-weight: 500; transition: color 0.35s ease; }
+  .vault-single-chart { height: 52px; flex: 1; }
+  .vault-single-chart svg { width: 100%; height: 100%; }
+  .vault-single-chart svg path { transition: stroke 0.35s ease; }
 
   /* Responsive */
   @media (max-width: 960px) {
@@ -94,6 +181,8 @@ import RiskBar from "../../components/ui/RiskBar.astro";
     .dash-left { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
     .stats-row { grid-template-columns: repeat(2,1fr); }
     .dash-right { overflow-y: visible; }
+    .vault-card { flex: 0 0 100%; }
+    .dash-right > div[style*="grid"] { grid-template-columns: 1fr !important; }
   }
   @media (max-width: 480px) {
     .dash-left { padding: 16px; }
@@ -131,6 +220,7 @@ import RiskBar from "../../components/ui/RiskBar.astro";
       <div class="chart-tooltip" id="chart-tooltip" style="display:none;">
         <div class="chart-tooltip-dot"></div>
         <div class="chart-tooltip-val" id="chart-tooltip-val"></div>
+        <div class="chart-tooltip-date" id="chart-tooltip-date"></div>
       </div>
       <canvas id="chart"></canvas>
     </div>
@@ -170,19 +260,24 @@ import RiskBar from "../../components/ui/RiskBar.astro";
       </div>
     </div>
 
-    <!-- Goals mini -->
-    <div>
-      <SectionHeader title="Goals" href="/dashboard/goals" />
-      <div class="goals-mini" id="goals-mini">
-        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+    <!-- Goals & Top Vaults side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Goals mini -->
+      <div>
+        <SectionHeader title="Goals" href="/dashboard/goals" />
+        <div class="goals-mini" id="goals-mini">
+          <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+        </div>
       </div>
-    </div>
 
-    <!-- Top Vaults mini -->
-    <div>
-      <SectionHeader title="Top Vaults" href="/dashboard/vaults" />
-      <div class="dash-vaults-mini" id="dash-vaults-mini">
-        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+      <!-- Top Vaults mini -->
+      <div>
+        <SectionHeader title="Top Vaults" href="/dashboard/vaults" />
+        <div class="dash-vaults-mini" id="dash-vaults-mini">
+          <a href="/dashboard/vaults" class="vault-single" id="vault-single">
+            <div style="color:#555;font-size:0.8125rem;text-align:center;padding:24px;">Loading...</div>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -232,20 +327,23 @@ function drawChart(data: number[], hoverIdx = -1) {
   const min = Math.min(...data);
   const max = Math.max(...data);
   const rng = max - min || 1;
-  const padY = 16;
+  const padY = 20;
 
   const px = (i: number) => (i / (data.length - 1)) * W;
   const py = (v: number) => H - padY - ((v - min) / rng) * (H - padY * 2);
 
-  ctx.strokeStyle = "rgba(255,255,255,0.04)";
+  // Grid lines
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
   ctx.lineWidth = 1;
   for(let i = 0; i <= 20; i++){
     const x = (i / 20) * W;
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
   }
 
+  // Gradient fill under line
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "rgba(200,241,53,0.18)");
+  grad.addColorStop(0, "rgba(200,241,53,0.25)");
+  grad.addColorStop(0.5, "rgba(200,241,53,0.08)");
   grad.addColorStop(1, "rgba(200,241,53,0)");
   ctx.beginPath();
   ctx.moveTo(px(0), H);
@@ -255,31 +353,94 @@ function drawChart(data: number[], hoverIdx = -1) {
   ctx.fillStyle = grad;
   ctx.fill();
 
+  // Glow effect
+  ctx.shadowColor = "rgba(200,241,53,0.5)";
+  ctx.shadowBlur = hoverIdx >= 0 ? 15 : 8;
+  
+  // Main line
   ctx.beginPath();
   ctx.strokeStyle = "#c8f135";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = hoverIdx >= 0 ? 3 : 2.5;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   data.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
   ctx.stroke();
+  
+  ctx.shadowBlur = 0;
 
+  // Hover effects
   if(hoverIdx >= 0 && hoverIdx < data.length){
     const hx = px(hoverIdx), hy = py(data[hoverIdx]);
+    
+    // Vertical crosshair
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(200,241,53,0.3)";
+    ctx.strokeStyle = "rgba(200,241,53,0.25)";
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.setLineDash([6, 6]);
     ctx.moveTo(hx, 0); ctx.lineTo(hx, H);
     ctx.stroke();
     ctx.setLineDash([]);
+    
+    // Gradient area under hover point
+    ctx.beginPath();
+    ctx.moveTo(hx - 40, H);
+    ctx.lineTo(hx - 40, hy);
+    ctx.lineTo(hx + 40, hy);
+    ctx.lineTo(hx + 40, H);
+    ctx.closePath();
+    const hoverGrad = ctx.createLinearGradient(0, hy, 0, H);
+    hoverGrad.addColorStop(0, "rgba(200,241,53,0.15)");
+    hoverGrad.addColorStop(1, "rgba(200,241,53,0)");
+    ctx.fillStyle = hoverGrad;
+    ctx.fill();
+    
+    // Outer glow dot
+    ctx.beginPath();
+    ctx.arc(hx, hy, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,241,53,0.3)";
+    ctx.fill();
+    
+    // Main dot
     ctx.beginPath();
     ctx.arc(hx, hy, 6, 0, Math.PI * 2);
     ctx.fillStyle = "#c8f135";
     ctx.fill();
+    ctx.strokeStyle = "#0a0a0a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Inner dot
     ctx.beginPath();
     ctx.arc(hx, hy, 3, 0, Math.PI * 2);
     ctx.fillStyle = "#0a0a0a";
     ctx.fill();
+    
+    // Update tooltip position
+    const tt = document.getElementById("chart-tooltip")!;
+    const ttVal = document.getElementById("chart-tooltip-val")!;
+    const ttDate = document.getElementById("chart-tooltip-date")!;
+    
+    const change = data[hoverIdx] - data[0];
+    const changePct = ((change / data[0]) * 100).toFixed(2);
+    const isPositive = change >= 0;
+    
+    ttVal.innerHTML = `${isPositive ? '+' : ''}${fmt(change)} <span style="color:${isPositive ? '#c8f135' : '#ef4444'};font-size:0.75rem;font-weight:600;">(${isPositive ? '+' : ''}${changePct}%)</span>`;
+    
+    // Generate date based on hover position
+    const ranges: Record<string, {labels: string[], unit: string}> = {
+      "1h": {labels: Array.from({length: 60}, (_, i) => `${i}m`), unit: "min"},
+      "8h": {labels: Array.from({length: 96}, (_, i) => `${Math.floor(i/6)}h`), unit: "hour"},
+      "1d": {labels: Array.from({length: 48}, (_, i) => `${Math.floor(i/2)}h`), unit: "hour"},
+      "1w": {labels: Array.from({length: 56}, (_, i) => `D${Math.floor(i/8)}`), unit: "day"},
+      "1m": {labels: Array.from({length: 60}, (_, i) => `D${i+1}`), unit: "day"},
+      "6m": {labels: Array.from({length: 90}, (_, i) => `M${Math.floor(i/15)+1}`), unit: "month"},
+      "1y": {labels: Array.from({length: 120}, (_, i) => `M${Math.floor(i/10)+1}`), unit: "month"}
+    };
+    const rangeInfo = ranges[currentRange] || ranges["6m"];
+    const label = rangeInfo.labels[hoverIdx] || `${hoverIdx}`;
+    ttDate.textContent = label;
+    
+    tt.style.display = "flex";
   }
 }
 
@@ -289,7 +450,6 @@ function setRange(btn: HTMLElement) {
   currentRange = btn.dataset.range!;
   chartData = generateChartData(currentRange);
   drawChart(chartData);
-  document.getElementById("chart-tooltip")!.style.display = "none";
 }
 (window as any).setRange = setRange;
 
@@ -298,13 +458,9 @@ canvas.addEventListener("mousemove", (e) => {
   const idx = Math.round(((e.clientX - rect.left) / rect.width) * (chartData.length - 1));
   const clamped = Math.max(0, Math.min(chartData.length - 1, idx));
   drawChart(chartData, clamped);
-  const tt = document.getElementById("chart-tooltip")!;
-  tt.style.display = "flex";
-  document.getElementById("chart-tooltip-val")!.textContent = fmtShort(chartData[clamped] - chartData[0]);
 });
 canvas.addEventListener("mouseleave", () => {
   drawChart(chartData);
-  document.getElementById("chart-tooltip")!.style.display = "none";
 });
 
 // ── Load dashboard data ───────────────────────────────────
@@ -405,20 +561,62 @@ async function loadVaultsMini() {
     const res  = await fetch(`${API}/vaults`);
     const json = await res.json();
     if (!json.success) return;
-    const top = [...json.data]
-      .sort((a: any, b: any) => b.apy - a.apy)
-      .slice(0, 4);
-    const el = document.getElementById("dash-vaults-mini")!;
-    if (!top.length) {
-      el.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No vaults</div>`;
+    const allVaults = [...json.data].sort((a: any, b: any) => b.apy - a.apy).slice(0, 6);
+    const card = document.getElementById("vault-single")!;
+    
+    if (!allVaults.length) {
+      card.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:24px;">No vaults</div>`;
       return;
     }
-    el.innerHTML = top.map((v: any) => `
-      <a class="dvm-row" href="/dashboard/vaults">
-        <img class="dvm-logo" src="${v.logoUrl}" alt="${v.symbol}" onerror="this.src='/assets/yoUSD.png'">
-        <span class="dvm-name">${v.symbol}</span>
-        <span class="dvm-apy">${v.apy.toFixed(2)}%</span>
-      </a>`).join('');
+
+    function genVaultSpark(seed: number, count = 20): number[] {
+      let v = 50 + seed * 8;
+      return Array.from({length: count}, () => { v += (Math.random() - 0.45) * 12; return Math.max(10, Math.min(90, v)); });
+    }
+    function vaultSparkPath(pts: number[], w: number, h: number): string {
+      const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+      return "M" + pts.map((v, i) => `${(i/(pts.length-1))*w},${h - ((v-mn)/rng)*h}`).join("L");
+    }
+
+    let currentIndex = 0;
+    let autoRotateInterval: number;
+
+    function renderCard() {
+      const v = allVaults[currentIndex];
+      const spark = genVaultSpark(currentIndex);
+      const path = vaultSparkPath(spark, 200, 52);
+      card.href = `/dashboard/vaults?vault=${v.symbol}`;
+      card.innerHTML = `
+        <div class="vault-single-top">
+          <img class="vault-single-logo" src="${v.logoUrl}" alt="${v.symbol}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22><rect fill=%22%23222%22 width=%2240%22 height=%2240%22 rx=%2220%22/><text x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22%23fff%22 font-size=%2214%22 font-weight=%22700%22>${v.symbol}</text></svg>'">
+          <div class="vault-single-info">
+            <div class="vault-single-symbol">${v.symbol}</div>
+            <div class="vault-single-name">${v.name || v.underlyingSymbol}</div>
+          </div>
+          <div class="vault-single-apy">
+            <div class="vault-single-apy-val">${v.apy.toFixed(1)}%</div>
+            <div class="vault-single-apy-label">APY</div>
+          </div>
+        </div>
+        <div class="vault-single-chart">
+          <svg viewBox="0 0 200 50" preserveAspectRatio="none">
+            <path d="${path}" fill="none" stroke="rgba(200,241,53,0.6)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+        </div>`;
+    }
+
+    function nextVault() {
+      currentIndex = (currentIndex + 1) % allVaults.length;
+      renderCard();
+    }
+
+    function resetAutoRotate() {
+      if (autoRotateInterval) clearInterval(autoRotateInterval);
+      autoRotateInterval = setInterval(nextVault, 3500) as unknown as number;
+    }
+
+    renderCard();
+    resetAutoRotate();
   } catch(err) {
     console.error("Vaults mini load failed:", err);
   }
