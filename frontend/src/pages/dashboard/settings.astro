@@ -1,5 +1,6 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import SumCard from "../../components/ui/SumCard.astro";
 ---
 
 <MainLayout title="Portfolio" activePage="settings">
@@ -56,9 +57,14 @@ import MainLayout from "../../layouts/MainLayout.astro";
   @media (max-width: 900px) {
     .port-body { grid-template-columns: 1fr; }
   }
-  @media (max-width: 480px) {
+  @media (max-width: 600px) {
     .port-wrap { padding: 16px; }
+    .port-title { font-size: 1.375rem; }
     .alloc-inner { flex-direction: column; align-items: flex-start; }
+    .summary-row { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 400px) {
+    .summary-row { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -75,26 +81,10 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
   <!-- Summary row -->
   <div class="summary-row">
-    <div class="sum-card">
-      <div class="sum-label">Total Value</div>
-      <div class="sum-val white" id="p-total">$0.00</div>
-      <div class="sum-sub" id="p-total-sub">DeFi + TradFi</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">DeFi Balance</div>
-      <div class="sum-val white" id="p-defi">$0.00</div>
-      <div class="sum-sub pos" id="p-defi-sub">Across vaults</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">Total Yield Earned</div>
-      <div class="sum-val pos" id="p-yield">$0.00</div>
-      <div class="sum-sub pos" id="p-yield-sub">All time</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">Monthly Yield</div>
-      <div class="sum-val pos" id="p-monthly">$0.00</div>
-      <div class="sum-sub" id="p-monthly-sub">Projected</div>
-    </div>
+    <SumCard label="Total Value"      id="p-total"   subId="p-total-sub"   valClass="white" sub="DeFi + TradFi" />
+    <SumCard label="DeFi Balance"     id="p-defi"    subId="p-defi-sub"    valClass="white" subClass="pos" sub="Across vaults" />
+    <SumCard label="Total Yield Earned" id="p-yield" subId="p-yield-sub"   valClass="pos"   subClass="pos" sub="All time" />
+    <SumCard label="Monthly Yield"    id="p-monthly" subId="p-monthly-sub" valClass="pos"   sub="Projected" />
   </div>
 
   <!-- Body: allocation + goals -->
@@ -150,7 +140,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
 <script>
 const API = "/api";
 const fmt = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
-const fmtK = (n: number) => n >= 1000 ? `$${(n/1000).toFixed(1)}K` : fmt(n);
+const fmtK = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}K` : fmt(n);
 
 const VAULT_COLORS = ["#c8f135","#3b82f6","#a78bfa","#f59e0b","#06b6d4","#ec4899","#22c55e"];
 const VAULT_APYS: Record<string,number> = {
@@ -158,37 +148,26 @@ const VAULT_APYS: Record<string,number> = {
   yoUSDT: 5.0, yoEUR: 4.2, default: 6.0
 };
 
-// ── Donut chart ──────────────────────────────────────────
 function drawDonut(segments: {pct: number; color: string}[]) {
   const svg = document.getElementById("donut-svg")!;
   const cx = 70, cy = 70, r = 54, stroke = 18;
   const circumference = 2 * Math.PI * r;
-  let offset = -circumference * 0.25; // start at top
+  let offset = -circumference * 0.25;
 
   const paths = segments.map(s => {
     const dash = (s.pct / 100) * circumference;
     const gap  = circumference - dash;
-    const el = `<circle
-      cx="${cx}" cy="${cy}" r="${r}"
-      fill="none"
-      stroke="${s.color}"
-      stroke-width="${stroke}"
-      stroke-dasharray="${dash} ${gap}"
-      stroke-dashoffset="${-offset}"
-      style="transition: stroke-dasharray 0.5s ease;"
-    />`;
+    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offset}" style="transition:stroke-dasharray 0.5s ease;"/>`;
     offset += dash;
     return el;
   });
 
-  // background ring
   svg.innerHTML = `
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${stroke}"/>
     ${paths.join("")}
   `;
 }
 
-// ── Load data ────────────────────────────────────────────
 async function loadPortfolio() {
   try {
     const [dashRes, goalsRes] = await Promise.all([
@@ -201,7 +180,6 @@ async function loadPortfolio() {
     if (!dash.success) return;
     const d = dash.data;
 
-    // Summary cards
     document.getElementById("p-total")!.textContent = fmt(d.totalNetWorth);
     document.getElementById("p-total-sub")!.textContent = `DeFi ${fmtK(d.defiBalance)} + TradFi ${fmtK(d.tradFiBalance)}`;
     document.getElementById("p-defi")!.textContent = fmt(d.defiBalance);
@@ -212,7 +190,6 @@ async function loadPortfolio() {
     document.getElementById("p-monthly-sub")!.textContent = `~${fmt(d.yieldMonth * 12)} / year`;
     document.getElementById("donut-val")!.textContent = fmtK(d.defiBalance);
 
-    // Build vault aggregation from goals
     const goals = goalsData.success ? goalsData.data : [];
     const vaultMap: Record<string, {name: string; balance: number; color: string; idx: number}> = {};
     let colorIdx = 0;
@@ -232,12 +209,9 @@ async function loadPortfolio() {
 
     const total = vaults.reduce((s, v) => s + v.balance, 0) || 1;
 
-    // Donut
     drawDonut(vaults.map(v => ({ pct: (v.balance / total) * 100, color: v.color })));
 
-    // Legend
-    const legend = document.getElementById("alloc-legend")!;
-    legend.innerHTML = vaults.map(v => `
+    document.getElementById("alloc-legend")!.innerHTML = vaults.map(v => `
       <div class="legend-row">
         <div class="legend-dot" style="background:${v.color};"></div>
         <span class="legend-name">${v.name}</span>
@@ -245,7 +219,6 @@ async function loadPortfolio() {
         <span class="legend-val">${fmtK(v.balance)}</span>
       </div>`).join("");
 
-    // Goals list
     const goalsList = document.getElementById("goals-list")!;
     if (d.goalSummaries.length === 0) {
       goalsList.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
@@ -269,7 +242,6 @@ async function loadPortfolio() {
       }).join("");
     }
 
-    // Positions table
     const tbody = document.getElementById("positions-body")!;
     if (vaults.length === 0) {
       tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#555;padding:24px 0;">No positions found</td></tr>`;
@@ -298,7 +270,6 @@ async function loadPortfolio() {
       }).join("");
     }
 
-    // Updated time
     document.getElementById("port-updated")!.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}`;
 
   } catch(err) {
