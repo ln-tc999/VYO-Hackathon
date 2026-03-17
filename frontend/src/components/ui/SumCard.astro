@@ -1,0 +1,17 @@
+---
+interface Props {
+  label: string;
+  value?: string;
+  sub?: string;
+  valClass?: string; // 'pos' | 'white'
+  subClass?: string; // 'pos' | ''
+  id?: string;
+  subId?: string;
+}
+const { label, value = '$0.00', sub, valClass = 'white', subClass = '', id, subId } = Astro.props;
+---
+<div class="sum-card">
+  <div class="sum-label">{label}</div>
+  <div class={`sum-val ${valClass}`} id={id}>{value}</div>
+  {sub && <div class={`sum-sub ${subClass}`} id={subId}>{sub}</div>}
+</div>

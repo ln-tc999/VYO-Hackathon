@@ -1,0 +1,15 @@
+---
+interface Props {
+  /** 0–100 */
+  value?: number;
+  fillId?: string;
+}
+const { value = 40, fillId = 'risk-fill' } = Astro.props;
+---
+<div class="risk-bar-track">
+  <div class="risk-bar-fill" id={fillId} style={`width:${value}%;`}></div>
+</div>
+<div class="risk-labels">
+  <span>Low Risk</span>
+  <span>High Risk</span>
+</div>
