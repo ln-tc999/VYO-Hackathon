@@ -18,11 +18,11 @@ import MainLayout from "../../layouts/MainLayout.astro";
   </div>
 
   <!-- Sort bar -->
-  <div style="display:flex; align-items:center; gap:var(--s4); margin-bottom:var(--s5); font-size:var(--font-xs); color:var(--text-muted);">
+  <div style="display:flex; align-items:center; gap:var(--s4); margin-bottom:var(--s5); font-size:var(--font-xs); color:var(--text-muted); flex-wrap:wrap;">
     <span>Sort by:</span>
-    <button class="sort-btn active" data-sort="apy"      onclick="sortVaults('apy',this)"      style="background:none;border:none;cursor:pointer;color:var(--lime);font-size:var(--font-xs);font-weight:600;font-family:var(--font);">APY ↓</button>
-    <button class="sort-btn"        data-sort="tvl"      onclick="sortVaults('tvl',this)"      style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:var(--font-xs);font-weight:500;font-family:var(--font);">TVL</button>
-    <button class="sort-btn"        data-sort="risk"     onclick="sortVaults('risk',this)"     style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:var(--font-xs);font-weight:500;font-family:var(--font);">Risk</button>
+    <button class="sort-btn active" data-sort="apy"  onclick="sortVaults('apy',this)">APY ↓</button>
+    <button class="sort-btn"        data-sort="tvl"  onclick="sortVaults('tvl',this)">TVL</button>
+    <button class="sort-btn"        data-sort="risk" onclick="sortVaults('risk',this)">Risk</button>
   </div>
 
   <div class="vaults-grid" id="vaults-grid">
@@ -125,12 +125,8 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
   function sortVaults(sort, btn) {
     currentSort = sort;
-    document.querySelectorAll(".sort-btn").forEach(b => {
-      (b as HTMLElement).style.color = "var(--text-muted)";
-      (b as HTMLElement).style.fontWeight = "500";
-    });
-    (btn as HTMLElement).style.color = "var(--lime)";
-    (btn as HTMLElement).style.fontWeight = "600";
+    document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
     applyFiltersAndSort();
   }
 
