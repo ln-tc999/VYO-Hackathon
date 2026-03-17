@@ -1045,6 +1045,27 @@ astro-island { display: contents; }
 }
 .nav-wallet-disconnect:hover { background: rgba(239,68,68,0.08); }
 
+/* ---------- Sort Button (Vaults page) ---------- */
+.sort-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: var(--font-xs);
+  font-weight: 500; font-family: var(--font);
+  transition: color var(--t-fast);
+  padding: 0;
+}
+.sort-btn:hover { color: var(--text-secondary); }
+.sort-btn.active { color: var(--lime); font-weight: 600; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; top: 20px; right: 20px; z-index: 9999;
+  background: var(--bg-card); border: 1px solid var(--border-hover);
+  color: var(--text-primary); padding: 12px 18px;
+  border-radius: var(--r-md); font-weight: 500; font-size: var(--font-sm);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: celebrate 0.3s ease-out;
+}
+
 /* ============================================================
    Responsive
    ============================================================ */
