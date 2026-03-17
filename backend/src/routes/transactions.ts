@@ -25,7 +25,9 @@ transactionsRouter.get('/', (_req, res) => {
 
 // POST /api/transactions/preview-deposit — Preview deposit result
 transactionsRouter.post('/preview-deposit', async (req, res) => {
-    const { vaultId, amount } = req.body;
+    // Accept vaultAddress (from vaults page) or vaultId (legacy)
+    const vaultId = req.body.vaultAddress || req.body.vaultId;
+    const { amount } = req.body;
 
     if (!vaultId || !amount || amount <= 0) {
         res.status(400).json({ 
@@ -59,6 +61,9 @@ transactionsRouter.post('/preview-deposit', async (req, res) => {
         res.json({
             success: true,
             data: {
+                // Top-level fields for vaults page deposit form
+                shares: expectedShares,
+                slippage: 0.5,
                 vault: {
                     id: vault.id,
                     name: vault.name,
@@ -68,7 +73,7 @@ transactionsRouter.post('/preview-deposit', async (req, res) => {
                 deposit: {
                     amount: amount,
                     expectedShares: expectedShares,
-                    pricePerShare: amount / expectedShares,
+                    pricePerShare: expectedShares > 0 ? amount / expectedShares : 0,
                 },
                 estimated: {
                     dailyYield: (amount * snapshot.apy / 100) / 365,
@@ -92,7 +97,8 @@ transactionsRouter.post('/preview-deposit', async (req, res) => {
 
 // POST /api/transactions/preview-redeem — Preview redeem result
 transactionsRouter.post('/preview-redeem', async (req, res) => {
-    const { vaultId, shares } = req.body;
+    const vaultId = req.body.vaultAddress || req.body.vaultId;
+    const { shares } = req.body;
 
     if (!vaultId || !shares || shares <= 0) {
         res.status(400).json({ 
@@ -154,7 +160,8 @@ transactionsRouter.post('/preview-redeem', async (req, res) => {
 
 // POST /api/transactions/build-deposit — Build deposit transaction for wallet
 transactionsRouter.post('/build-deposit', async (req, res) => {
-    const { vaultId, amount, userAddress } = req.body;
+    const vaultId = req.body.vaultAddress || req.body.vaultId;
+    const { amount, userAddress } = req.body;
 
     if (!vaultId || !amount || !userAddress) {
         res.status(400).json({ 
@@ -198,7 +205,8 @@ transactionsRouter.post('/build-deposit', async (req, res) => {
 
 // POST /api/transactions/build-redeem — Build redeem transaction for wallet
 transactionsRouter.post('/build-redeem', async (req, res) => {
-    const { vaultId, shares, userAddress } = req.body;
+    const vaultId = req.body.vaultAddress || req.body.vaultId;
+    const { shares, userAddress } = req.body;
 
     if (!vaultId || !shares || !userAddress) {
         res.status(400).json({ 
