@@ -3,32 +3,187 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Vaults" activePage="vaults">
-<div style="padding:28px 24px;">
+<style is:global>
+  .vaults-page { padding: 28px 24px; max-width: 960px; margin: 0 auto; }
+
+  /* Summary bar */
+  .vault-summary-bar {
+    display: grid; grid-template-columns: repeat(3,1fr);
+    gap: 12px; margin-bottom: 28px;
+  }
+  .vsb-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .vsb-label { font-size: var(--font-xs); color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .vsb-val   { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.5px; }
+  .vsb-val.lime { color: var(--lime); }
+
+  /* Controls */
+  .vault-controls {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+
+  /* List */
+  .vault-list { display: flex; flex-direction: column; gap: 8px; }
+
+  /* Row */
+  .vault-row {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; transition: border-color 0.15s;
+  }
+  .vault-row:hover { border-color: var(--border-hover); }
+  .vault-row.open  { border-color: rgba(200,241,53,0.3); }
+
+  .vault-row-head {
+    display: grid;
+    grid-template-columns: 44px 1fr 90px 110px 120px 90px 120px;
+    align-items: center; gap: 12px;
+    padding: 14px 18px; cursor: pointer;
+  }
+
+  .vault-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #222; flex-shrink: 0; }
+
+  .vault-name-text { font-size: 0.9375rem; font-weight: 700; }
+  .vault-chain-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: var(--font-xs); font-weight: 600;
+    padding: 2px 8px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); color: var(--text-muted);
+    border: 1px solid var(--border); margin-top: 3px;
+  }
+
+  .vault-col-label { font-size: var(--font-xs); color: var(--text-muted); margin-bottom: 2px; }
+  .vault-col-val   { font-size: 0.9375rem; font-weight: 700; }
+  .vault-col-val.lime { color: var(--lime); }
+
+  .vault-risk-dots { display: flex; gap: 3px; margin-top: 2px; }
+  .vrd { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.08); }
+  .vrd.on-low  { background: var(--lime); }
+  .vrd.on-mid  { background: var(--amber); }
+  .vrd.on-high { background: var(--red); }
+
+  .vault-deposit-btn {
+    padding: 8px 16px; border-radius: 8px;
+    background: var(--lime); color: #000;
+    font-size: var(--font-sm); font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s, box-shadow 0.15s; white-space: nowrap;
+  }
+  .vault-deposit-btn:hover { background: #d4f53c; box-shadow: 0 0 16px rgba(200,241,53,0.3); }
+
+  /* Expand panel */
+  .vault-expand {
+    display: none; border-top: 1px solid var(--border);
+    padding: 20px 18px; background: rgba(255,255,255,0.015);
+  }
+  .vault-row.open .vault-expand { display: block; }
+
+  .vault-expand-inner {
+    display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;
+  }
+
+  .vault-detail-grid {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px;
+  }
+  .vdg-item {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .vdg-label { font-size: var(--font-xs); color: var(--text-muted); margin-bottom: 4px; }
+  .vdg-val   { font-size: 1rem; font-weight: 700; }
+
+  .vault-audit-link { font-size: var(--font-xs); color: var(--text-muted); transition: color 0.15s; }
+  .vault-audit-link:hover { color: var(--lime); }
+
+  /* Deposit form */
+  .deposit-form {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .deposit-form-title { font-size: 0.9375rem; font-weight: 700; margin-bottom: 14px; }
+
+  .deposit-input-wrap { position: relative; margin-bottom: 10px; }
+  .deposit-input {
+    width: 100%; padding: 11px 14px; padding-right: 60px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 9px; font-family: var(--font); font-size: 1rem;
+    font-weight: 700; color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .deposit-input:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px var(--lime-dim); }
+  .deposit-input::placeholder { color: var(--text-muted); font-weight: 400; }
+  .deposit-input-sym {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: var(--font-xs); font-weight: 700; color: var(--text-muted);
+  }
+
+  .deposit-preview {
+    background: rgba(200,241,53,0.06); border: 1px solid rgba(200,241,53,0.15);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
+    font-size: var(--font-sm); display: none;
+  }
+  .deposit-preview.show { display: block; }
+  .deposit-preview-row { display: flex; justify-content: space-between; align-items: center; }
+  .deposit-preview-label { color: var(--text-muted); }
+  .deposit-preview-val   { font-weight: 700; color: var(--lime); }
+
+  .deposit-submit {
+    width: 100%; padding: 12px; border-radius: 9px;
+    background: var(--lime); color: #000;
+    font-size: var(--font-base); font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .deposit-submit:hover { background: #d4f53c; box-shadow: 0 0 20px rgba(200,241,53,0.3); }
+  .deposit-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .deposit-msg { font-size: var(--font-xs); margin-top: 8px; text-align: center; min-height: 16px; }
+  .deposit-msg.ok  { color: var(--lime); }
+  .deposit-msg.err { color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 860px) {
+    .vault-row-head { grid-template-columns: 36px 1fr 80px 90px 90px; }
+    .vault-col-risk, .vault-deposit-col { display: none; }
+    .vault-expand-inner { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .vaults-page { padding: 16px; }
+    .vault-summary-bar { grid-template-columns: 1fr 1fr; }
+    .vault-row-head { grid-template-columns: 36px 1fr 80px 90px; }
+    .vault-col-tvl { display: none; }
+    .vault-detail-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div class="vaults-page">
 
   <div class="page-header">
     <h1 class="page-title">YO Protocol Vaults</h1>
-    <p class="page-subtitle">Audited ERC-4626 vaults across Ethereum and Base.</p>
+    <p class="page-subtitle">Audited ERC-4626 vaults. Real yield, on-chain.</p>
   </div>
 
-  <!-- Filter -->
-  <div style="display:flex; gap:var(--s2); margin-bottom:var(--s6); flex-wrap:wrap;">
-    <button class="btn btn-primary filter-btn" data-chain="all"      onclick="filterVaults('all',this)">All</button>
-    <button class="btn btn-ghost  filter-btn" data-chain="Base"      onclick="filterVaults('Base',this)">⬡ Base</button>
-    <button class="btn btn-ghost  filter-btn" data-chain="Ethereum"  onclick="filterVaults('Ethereum',this)">◆ Ethereum</button>
+  <div class="vault-summary-bar">
+    <div class="vsb-item"><div class="vsb-label">Total TVL (tokens)</div><div class="vsb-val" id="vsb-tvl">—</div></div>
+    <div class="vsb-item"><div class="vsb-label">Avg APY (7d)</div><div class="vsb-val lime" id="vsb-apy">—</div></div>
+    <div class="vsb-item"><div class="vsb-label">Vaults</div><div class="vsb-val" id="vsb-count">—</div></div>
   </div>
 
-  <!-- Sort bar -->
-  <div style="display:flex; align-items:center; gap:var(--s4); margin-bottom:var(--s5); font-size:var(--font-xs); color:var(--text-muted); flex-wrap:wrap;">
-    <span>Sort by:</span>
+  <div class="vault-controls">
+    <button class="btn btn-primary filter-btn" data-chain="all"     onclick="filterVaults('all',this)">All</button>
+    <button class="btn btn-ghost  filter-btn" data-chain="Base"     onclick="filterVaults('Base',this)">⬡ Base</button>
+    <button class="btn btn-ghost  filter-btn" data-chain="Ethereum" onclick="filterVaults('Ethereum',this)">◆ Ethereum</button>
+    <span style="margin-left:auto;font-size:var(--font-xs);color:var(--text-muted);">Sort:</span>
     <button class="sort-btn active" data-sort="apy"  onclick="sortVaults('apy',this)">APY ↓</button>
     <button class="sort-btn"        data-sort="tvl"  onclick="sortVaults('tvl',this)">TVL</button>
     <button class="sort-btn"        data-sort="risk" onclick="sortVaults('risk',this)">Risk</button>
   </div>
 
-  <div class="vaults-grid" id="vaults-grid">
-    <div class="card empty-state loading">
-      <div class="empty-state-text">Loading vaults...</div>
-    </div>
+  <div class="vault-list" id="vault-list">
+    <div class="vault-row" style="padding:32px;text-align:center;color:var(--text-muted);">Loading vaults...</div>
   </div>
 
 </div>
@@ -36,109 +191,239 @@ import MainLayout from "../../layouts/MainLayout.astro";
 
 <script>
   const API = "/api";
-  let allVaults = [];
+  let allVaults: any[] = [];
   let currentChain = "all";
-  let currentSort = "apy";
+  let currentSort  = "apy";
+  let openVaultId: string | null = null;
 
-  function fmtCompact(n) {
-    if (n >= 1e9) return `$${(n/1e9).toFixed(1)}B`;
-    if (n >= 1e6) return `$${(n/1e6).toFixed(1)}M`;
-    if (n >= 1e3) return `$${(n/1e3).toFixed(0)}K`;
-    return `$${n}`;
+  function fmtCompact(n: number): string {
+    if (n >= 1e9) return `${(n/1e9).toFixed(2)}B`;
+    if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`;
+    if (n >= 1e3) return `${(n/1e3).toFixed(0)}K`;
+    return `${n.toFixed(2)}`;
   }
 
-  function getRiskClass(score) {
-    if (score <= 3) return "low";
-    if (score <= 6) return "";
-    return "high";
+  function riskDotClass(score: number, i: number): string {
+    if (i >= score) return '';
+    if (score <= 3) return 'on-low';
+    if (score <= 6) return 'on-mid';
+    return 'on-high';
   }
 
-  function renderVaults(vaults) {
-    const grid = document.getElementById("vaults-grid");
-    if (vaults.length === 0) {
-      grid.innerHTML = `<div class="card empty-state"><div class="empty-state-text">No vaults for this filter</div></div>`;
+  function renderList(vaults: any[]) {
+    const list = document.getElementById("vault-list")!;
+    if (!vaults.length) {
+      list.innerHTML = `<div class="vault-row" style="padding:32px;text-align:center;color:var(--text-muted);">No vaults found</div>`;
       return;
     }
 
-    grid.innerHTML = vaults.map(v => `
-      <div class="card vault-card" data-chain="${v.chain}">
-        <div class="vault-card-header">
+    list.innerHTML = vaults.map(v => {
+      const dots = Array.from({length:10}, (_,i) =>
+        `<div class="vrd ${riskDotClass(v.riskScore, i)}"></div>`
+      ).join('');
+      const riskColor = v.riskScore <= 3 ? 'var(--lime)' : v.riskScore <= 6 ? 'var(--amber)' : 'var(--red)';
+      const isOpen = openVaultId === v.id;
+
+      return `
+      <div class="vault-row ${isOpen ? 'open' : ''}" id="vrow-${v.id}">
+        <div class="vault-row-head" onclick="toggleVault('${v.id}')">
+          <img class="vault-logo" src="${v.logoUrl}" alt="${v.symbol}" onerror="this.src='/assets/yoUSD.png'">
           <div>
-            <div class="vault-symbol">${v.symbol}</div>
-            <div style="font-size:var(--font-xs);color:var(--text-muted);margin-top:2px;">${v.name}</div>
+            <div class="vault-name-text">${v.symbol}</div>
+            <div class="vault-chain-badge">${v.chain === 'Base' ? '⬡' : '◆'} ${v.chain}</div>
           </div>
-          <span class="chain-badge">${v.chain === "Base" ? "⬡" : "◆"} ${v.chain}</span>
+          <div>
+            <div class="vault-col-label">APY</div>
+            <div class="vault-col-val lime">${v.apy.toFixed(2)}%</div>
+          </div>
+          <div class="vault-col-tvl">
+            <div class="vault-col-label">TVL</div>
+            <div class="vault-col-val">${fmtCompact(v.tvl)}</div>
+          </div>
+          <div>
+            <div class="vault-col-label">Underlying</div>
+            <div class="vault-col-val" style="font-size:var(--font-sm)">${v.underlyingSymbol}</div>
+          </div>
+          <div class="vault-col-risk">
+            <div class="vault-col-label">Risk</div>
+            <div class="vault-risk-dots">${dots}</div>
+            <div style="font-size:var(--font-xs);font-weight:700;color:${riskColor};margin-top:2px;">${v.riskScore}/10</div>
+          </div>
+          <div class="vault-deposit-col">
+            <button class="vault-deposit-btn" onclick="event.stopPropagation();openDeposit('${v.id}')">Deposit</button>
+          </div>
         </div>
 
-        <div class="vault-stats">
-          <div class="vault-stat-item">
-            <div class="vault-stat-label">APY</div>
-            <div class="vault-stat-value apy">${v.apy.toFixed(2)}%</div>
-          </div>
-          <div class="vault-stat-item">
-            <div class="vault-stat-label">TVL</div>
-            <div class="vault-stat-value tvl">${fmtCompact(v.tvl)}</div>
+        <div class="vault-expand">
+          <div class="vault-expand-inner">
+            <div>
+              <div class="vault-detail-grid">
+                <div class="vdg-item"><div class="vdg-label">APY (7d)</div><div class="vdg-val" style="color:var(--lime)">${v.apy.toFixed(2)}%</div></div>
+                <div class="vdg-item"><div class="vdg-label">TVL</div><div class="vdg-val">${fmtCompact(v.tvl)}</div></div>
+                <div class="vdg-item"><div class="vdg-label">Lockup</div><div class="vdg-val">${v.lockupPeriod || 'None'}</div></div>
+                <div class="vdg-item"><div class="vdg-label">Underlying</div><div class="vdg-val">${v.underlyingSymbol}</div></div>
+                <div class="vdg-item"><div class="vdg-label">Chain</div><div class="vdg-val">${v.chain}</div></div>
+                <div class="vdg-item"><div class="vdg-label">Risk Score</div><div class="vdg-val" style="color:${riskColor}">${v.riskScore}/10</div></div>
+              </div>
+              <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">View Security Audit →</a>
+            </div>
+
+            <div class="deposit-form">
+              <div class="deposit-form-title">Deposit into ${v.symbol}</div>
+              <div class="deposit-input-wrap">
+                <input
+                  class="deposit-input"
+                  type="number" min="0" step="any"
+                  placeholder="0.00"
+                  id="dinput-${v.id}"
+                  oninput="onAmountInput('${v.id}','${v.address}','${v.underlyingSymbol}')"
+                />
+                <span class="deposit-input-sym">${v.underlyingSymbol}</span>
+              </div>
+              <div class="deposit-preview" id="dpreview-${v.id}">
+                <div class="deposit-preview-row">
+                  <span class="deposit-preview-label">You receive</span>
+                  <span class="deposit-preview-val" id="dpreview-shares-${v.id}">—</span>
+                </div>
+                <div class="deposit-preview-row" style="margin-top:4px;">
+                  <span class="deposit-preview-label">Slippage</span>
+                  <span class="deposit-preview-val" id="dpreview-slip-${v.id}">—</span>
+                </div>
+              </div>
+              <button class="deposit-submit" id="dsubmit-${v.id}"
+                onclick="submitDeposit('${v.id}','${v.address}','${v.underlyingSymbol}')">
+                Deposit
+              </button>
+              <div class="deposit-msg" id="dmsg-${v.id}"></div>
+            </div>
           </div>
         </div>
+      </div>`;
+    }).join('');
 
-        <div class="vault-risk">
-          <span style="color:var(--text-muted);">Risk</span>
-          <div class="risk-dots">
-            ${Array.from({length:10},(_,i) => `
-              <div class="risk-dot ${i < v.riskScore ? `active ${getRiskClass(v.riskScore)}` : ""}"></div>
-            `).join("")}
-          </div>
-          <span style="font-size:var(--font-xs);font-weight:700;color:${v.riskScore<=3?'var(--lime)':v.riskScore<=6?'var(--amber)':'var(--red)'};">
-            ${v.riskScore}/10
-          </span>
-        </div>
+    updateSummary(vaults);
+  }
 
-        <div class="vault-underlying">
-          Underlying: ${v.underlyingSymbol} · ${v.lockupPeriod}
-        </div>
-
-        <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">
-          View Audit →
-        </a>
-      </div>`).join("");
+  function updateSummary(vaults: any[]) {
+    const totalTvl = vaults.reduce((s, v) => s + v.tvl, 0);
+    const avgApy   = vaults.length ? vaults.reduce((s, v) => s + v.apy, 0) / vaults.length : 0;
+    document.getElementById("vsb-tvl")!.textContent   = fmtCompact(totalTvl);
+    document.getElementById("vsb-apy")!.textContent   = avgApy.toFixed(2) + '%';
+    document.getElementById("vsb-count")!.textContent = String(vaults.length);
   }
 
   function applyFiltersAndSort() {
-    let filtered = currentChain === "all" ? allVaults : allVaults.filter(v => v.chain === currentChain);
-    filtered = [...filtered].sort((a, b) => {
-      if (currentSort === "apy")  return b.apy - a.apy;
-      if (currentSort === "tvl")  return b.tvl - a.tvl;
-      if (currentSort === "risk") return a.riskScore - b.riskScore;
+    let list = currentChain === 'all' ? allVaults : allVaults.filter(v => v.chain === currentChain);
+    list = [...list].sort((a, b) => {
+      if (currentSort === 'apy')  return b.apy - a.apy;
+      if (currentSort === 'tvl')  return b.tvl - a.tvl;
+      if (currentSort === 'risk') return a.riskScore - b.riskScore;
       return 0;
     });
-    renderVaults(filtered);
+    renderList(list);
   }
 
-  function filterVaults(chain, btn) {
+  (window as any).filterVaults = (chain: string, btn: HTMLElement) => {
     currentChain = chain;
-    document.querySelectorAll(".filter-btn").forEach(b => {
-      b.classList.remove("btn-primary"); b.classList.add("btn-ghost");
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('btn-primary'); b.classList.add('btn-ghost');
     });
-    btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary");
+    btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary');
     applyFiltersAndSort();
+  };
+
+  (window as any).sortVaults = (sort: string, btn: HTMLElement) => {
+    currentSort = sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFiltersAndSort();
+  };
+
+  (window as any).toggleVault = (id: string) => {
+    openVaultId = openVaultId === id ? null : id;
+    applyFiltersAndSort();
+  };
+
+  (window as any).openDeposit = (id: string) => {
+    openVaultId = id;
+    applyFiltersAndSort();
+    setTimeout(() => document.getElementById(`dinput-${id}`)?.focus(), 50);
+  };
+
+  let previewTimer: ReturnType<typeof setTimeout> | null = null;
+  (window as any).onAmountInput = (id: string, address: string, sym: string) => {
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => fetchPreview(id, address, sym), 500);
+  };
+
+  async function fetchPreview(id: string, address: string, sym: string) {
+    const input  = document.getElementById(`dinput-${id}`) as HTMLInputElement;
+    const amount = parseFloat(input.value);
+    if (!amount || amount <= 0) {
+      document.getElementById(`dpreview-${id}`)!.classList.remove('show');
+      return;
+    }
+    try {
+      const res  = await fetch(`${API}/transactions/preview-deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vaultAddress: address, amount }),
+      });
+      const json = await res.json();
+      if (!json.success) return;
+      document.getElementById(`dpreview-${id}`)!.classList.add('show');
+      document.getElementById(`dpreview-shares-${id}`)!.textContent = `${json.data.shares.toFixed(4)} ${sym}`;
+      document.getElementById(`dpreview-slip-${id}`)!.textContent   = `${json.data.slippage ?? 0.5}%`;
+    } catch (e) {
+      console.error('Preview failed', e);
+    }
   }
 
-  function sortVaults(sort, btn) {
-    currentSort = sort;
-    document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    applyFiltersAndSort();
-  }
+  (window as any).submitDeposit = async (id: string, address: string, sym: string) => {
+    const input  = document.getElementById(`dinput-${id}`) as HTMLInputElement;
+    const btn    = document.getElementById(`dsubmit-${id}`) as HTMLButtonElement;
+    const msgEl  = document.getElementById(`dmsg-${id}`)!;
+    const amount = parseFloat(input.value);
+
+    if (!amount || amount <= 0) {
+      msgEl.className = 'deposit-msg err';
+      msgEl.textContent = 'Enter a valid amount';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Building tx...';
+    msgEl.className = 'deposit-msg';
+    msgEl.textContent = '';
+
+    try {
+      const res  = await fetch(`${API}/transactions/build-deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vaultAddress: address, amount, userAddress: '0x0000000000000000000000000000000000000000' }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Build failed');
+      msgEl.className = 'deposit-msg ok';
+      msgEl.textContent = `✓ Tx ready — connect wallet to sign (${json.data.transactions.length} tx)`;
+    } catch (err: any) {
+      msgEl.className = 'deposit-msg err';
+      msgEl.textContent = err.message || 'Failed to build transaction';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Deposit';
+    }
+  };
 
   async function loadVaults() {
     try {
-      const res = await fetch(`${API}/vaults`);
+      const res  = await fetch(`${API}/vaults`);
       const json = await res.json();
       if (!json.success) return;
       allVaults = json.data;
       applyFiltersAndSort();
     } catch (err) {
-      console.error("Failed to load vaults:", err);
+      console.error('Failed to load vaults:', err);
     }
   }
 
