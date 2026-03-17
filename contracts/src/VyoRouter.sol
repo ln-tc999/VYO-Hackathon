@@ -8,14 +8,60 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title VyoRouter
- * @notice Smart contract for Vyo Apps - Batch deposits, AI permissions, and goal management
+ * @notice Smart contract for Vyo Apps - Batch deposits, AI permissions, goal management, and Chainlink Automation
  * @dev Interacts with YO Protocol vaults (ERC-4626)
  */
 contract VyoRouter is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    // ============ Structs ============
+    // ============ Chainlink Automation Interface ============
     
+    /**
+     * @notice Chainlink Automation Compatible Interface
+     */
+    function checkUpkeep(bytes calldata checkData)
+        external
+        view
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
+        // Check if enough time has passed since last upkeep
+        if (block.timestamp - lastUpkeepTime < upkeepInterval) {
+            return (false, bytes("Not time for upkeep"));
+        }
+
+        // Decode goalId from checkData
+        bytes32 goalId;
+        if (checkData.length > 0) {
+            goalId = abi.decode(checkData, (bytes32));
+        }
+
+        // Check all active goals for automation needs
+        return _checkUpkeepConditions(goalId);
+    }
+
+    /**
+     * @notice Chainlink Automation executes this
+     */
+    function performUpkeep(bytes calldata performData) external {
+        (bytes32 goalId, AutomationAction action) = abi.decode(
+            performData,
+            (bytes32, AutomationAction)
+        );
+
+        lastUpkeepTime = block.timestamp;
+
+        if (action == AutomationAction.Compound) {
+            _compoundYield(goalId);
+        } else if (action == AutomationAction.Rebalance) {
+            // Rebalance handled by agent with approval
+            emit UpkeepExecuted(goalId, "Rebalance triggered - requires approval");
+        } else if (action == AutomationAction.Check) {
+            _checkGoalStatus(goalId);
+        }
+    }
+
+    // ============ Structs ============
+
     struct Goal {
         bytes32 id;
         address owner;
@@ -23,7 +69,7 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         uint256 targetAmount;
         uint256 currentAmount;
         uint256 deadline;
-        uint8 riskLevel; // 1-10 (1=conservative, 10=aggressive)
+        uint8 riskLevel;
         bool active;
         bytes32[] vaultAllocations;
     }
@@ -52,32 +98,57 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         bytes32 goalId;
     }
 
+    struct AutomationConfig {
+        bool enabled;
+        bool autoCompound;
+        bool autoRebalance;
+        uint256 compoundIntervalDays;
+        uint256 rebalanceThresholdBps;
+        uint256 minCompoundAmount;
+    }
+
+    // ============ Automation Types ============
+
+    enum AutomationAction {
+        None,
+        Compound,
+        Rebalance,
+        Check
+    }
+
     // ============ State Variables ============
-    
-    // YO Protocol Vault Interface
-    // TODO: Update with actual testnet vault address
+
+    // YO Protocol Vault (placeholder - update with actual)
     IYOVault public constant yoUSD = IYOVault(0x0000000000000000000000000000000000000000);
-    
+
     // User data
     mapping(address => Goal[]) public userGoals;
     mapping(bytes32 => VaultAllocation[]) public goalAllocations;
     mapping(address => AgentPermission) public agentPermissions;
     mapping(address => DepositRecord[]) public userDeposits;
     mapping(address => mapping(address => uint256)) public userVaultShares;
-    
+
     // AI Agents
     mapping(address => bool) public approvedAgents;
     address[] public agentList;
-    
+
+    // Automation
+    mapping(bytes32 => AutomationConfig) public automationConfigs;
+    mapping(bytes32 => uint256) public lastCompoundTime;
+    uint256 public lastUpkeepTime;
+    uint256 public upkeepInterval = 1 days;
+    address public keeperRegistry;
+
     // Configuration
-    uint256 public constant MAX_DAILY_SPEND_DEFAULT = 1000 * 1e6; // 1000 USDC
+    uint256 public constant MAX_DAILY_SPEND_DEFAULT = 1000 * 1e6;
     uint256 public constant DAY_IN_SECONDS = 86400;
-    
-    // USDC on Base Sepolia Testnet
+    uint256 public constant MIN_COMPOUND_AMOUNT = 10 * 1e6; // $10 minimum
+
+    // USDC on Base Sepolia
     IERC20 public constant USDC = IERC20(0x036cBd53842c5426634E92B0C9D5eb112A4E1d4d);
-    
+
     // ============ Events ============
-    
+
     event GoalCreated(
         bytes32 indexed goalId,
         address indexed owner,
@@ -85,20 +156,20 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         uint256 targetAmount,
         uint256 deadline
     );
-    
+
     event GoalUpdated(
         bytes32 indexed goalId,
         uint256 currentAmount,
         uint256 newTargetAmount
     );
-    
+
     event BatchDeposit(
         address indexed user,
         bytes32 indexed goalId,
         uint256 totalAmount,
         uint256 vaultCount
     );
-    
+
     event SingleDeposit(
         address indexed user,
         address indexed vault,
@@ -106,22 +177,22 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         uint256 shares,
         bytes32 indexed goalId
     );
-    
+
     event BatchRedeem(
         address indexed user,
         bytes32 indexed goalId,
         uint256 totalShares,
         uint256 vaultCount
     );
-    
+
     event AgentApproved(
         address indexed agent,
         uint256 spendLimit,
         uint256 maxDailySpend
     );
-    
+
     event AgentRevoked(address indexed agent);
-    
+
     event AgentAction(
         address indexed agent,
         address indexed user,
@@ -130,41 +201,75 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         uint256 amount,
         bytes32 goalId
     );
-    
+
     event EmergencyExit(
         address indexed user,
         uint256 totalAmount,
         uint256 vaultCount
     );
-    
+
     event YieldHarvested(
         address indexed user,
         address indexed vault,
         uint256 yieldAmount
     );
 
+    // Automation Events
+    event AutomationConfigured(
+        bytes32 indexed goalId,
+        bool autoCompound,
+        bool autoRebalance,
+        uint256 compoundIntervalDays
+    );
+
+    event AutomationDisabled(bytes32 indexed goalId);
+
+    event UpkeepNeeded(
+        bytes32 indexed goalId,
+        AutomationAction action,
+        string reason
+    );
+
+    event UpkeepExecuted(
+        bytes32 indexed goalId,
+        string action
+    );
+
+    event YieldCompounded(
+        bytes32 indexed goalId,
+        uint256 yieldAmount,
+        uint256 newTotalShares
+    );
+
     // ============ Modifiers ============
-    
+
     modifier onlyAgent() {
         require(approvedAgents[msg.sender], "VyoRouter: Not authorized agent");
         _;
     }
-    
+
     modifier onlyGoalOwner(bytes32 _goalId) {
         require(isGoalOwner(msg.sender, _goalId), "VyoRouter: Not goal owner");
         _;
     }
-    
+
+    modifier onlyKeeper() {
+        require(
+            msg.sender == keeperRegistry || msg.sender == owner(),
+            "VyoRouter: Not authorized keeper"
+        );
+        _;
+    }
+
     modifier withinSpendLimit(address _user, uint256 _amount) {
         AgentPermission storage perm = agentPermissions[_user];
         require(perm.approved, "VyoRouter: Agent not approved for user");
-        
-        // Reset daily spend if needed
+
         if (block.timestamp >= perm.lastResetTime + DAY_IN_SECONDS) {
             perm.spentToday = 0;
             perm.lastResetTime = block.timestamp;
         }
-        
+
         require(
             perm.spentToday + _amount <= perm.maxDailySpend,
             "VyoRouter: Daily spend limit exceeded"
@@ -174,20 +279,13 @@ contract VyoRouter is ReentrancyGuard, Ownable {
     }
 
     // ============ Constructor ============
-    
-    constructor() Ownable(msg.sender) {}
+
+    constructor() Ownable(msg.sender) {
+        lastUpkeepTime = block.timestamp;
+    }
 
     // ============ Goal Management ============
-    
-    /**
-     * @notice Create a new savings goal
-     * @param _name Goal name
-     * @param _targetAmount Target amount in USDC (6 decimals)
-     * @param _deadline Deadline timestamp
-     * @param _riskLevel Risk level (1-10)
-     * @param _vaults Array of vault addresses
-     * @param _percentages Allocation percentages (must sum to 100)
-     */
+
     function createGoal(
         string calldata _name,
         uint256 _targetAmount,
@@ -200,23 +298,20 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         require(_vaults.length > 0, "VyoRouter: Empty allocation");
         require(_riskLevel >= 1 && _riskLevel <= 10, "VyoRouter: Invalid risk level");
         require(_deadline > block.timestamp, "VyoRouter: Invalid deadline");
-        
-        // Verify percentages sum to 100
+
         uint256 totalPercentage = 0;
         for (uint i = 0; i < _percentages.length; i++) {
             totalPercentage += _percentages[i];
         }
         require(totalPercentage == 100, "VyoRouter: Percentages must sum to 100");
-        
-        // Generate goal ID
+
         goalId = keccak256(abi.encodePacked(
             msg.sender,
             _name,
             block.timestamp,
             block.number
         ));
-        
-        // Create goal
+
         Goal memory newGoal = Goal({
             id: goalId,
             owner: msg.sender,
@@ -228,15 +323,14 @@ contract VyoRouter is ReentrancyGuard, Ownable {
             active: true,
             vaultAllocations: new bytes32[](_vaults.length)
         });
-        
-        // Create allocations
+
         for (uint i = 0; i < _vaults.length; i++) {
             bytes32 allocationId = keccak256(abi.encodePacked(
                 goalId,
                 _vaults[i],
                 i
             ));
-            
+
             goalAllocations[goalId].push(VaultAllocation({
                 goalId: goalId,
                 vault: _vaults[i],
@@ -244,34 +338,35 @@ contract VyoRouter is ReentrancyGuard, Ownable {
                 depositedAmount: 0,
                 shares: 0
             }));
-            
+
             newGoal.vaultAllocations[i] = allocationId;
         }
-        
+
         userGoals[msg.sender].push(newGoal);
-        
+
+        // Initialize automation config with defaults
+        automationConfigs[goalId] = AutomationConfig({
+            enabled: false,
+            autoCompound: false,
+            autoRebalance: false,
+            compoundIntervalDays: 7,
+            rebalanceThresholdBps: 200, // 2%
+            minCompoundAmount: MIN_COMPOUND_AMOUNT
+        });
+
         emit GoalCreated(goalId, msg.sender, _name, _targetAmount, _deadline);
-        
+
         return goalId;
     }
-    
-    /**
-     * @notice Get user's goals
-     */
+
     function getUserGoals(address _user) external view returns (Goal[] memory) {
         return userGoals[_user];
     }
-    
-    /**
-     * @notice Get goal allocations
-     */
+
     function getGoalAllocations(bytes32 _goalId) external view returns (VaultAllocation[] memory) {
         return goalAllocations[_goalId];
     }
-    
-    /**
-     * @notice Check if user owns a goal
-     */
+
     function isGoalOwner(address _user, bytes32 _goalId) internal view returns (bool) {
         Goal[] memory goals = userGoals[_user];
         for (uint i = 0; i < goals.length; i++) {
@@ -283,14 +378,7 @@ contract VyoRouter is ReentrancyGuard, Ownable {
     }
 
     // ============ Batch Deposits ============
-    
-    /**
-     * @notice Deposit to multiple vaults in one transaction (for a goal)
-     * @param _goalId Goal ID
-     * @param _vaults Array of vault addresses
-     * @param _amounts Amounts to deposit to each vault (USDC)
-     * @param _totalAmount Total USDC amount (must be approved)
-     */
+
     function batchDeposit(
         bytes32 _goalId,
         address[] calldata _vaults,
@@ -299,26 +387,21 @@ contract VyoRouter is ReentrancyGuard, Ownable {
     ) external nonReentrant onlyGoalOwner(_goalId) {
         require(_vaults.length == _amounts.length, "VyoRouter: Length mismatch");
         require(_vaults.length > 0, "VyoRouter: Empty deposit");
-        
-        // Transfer USDC from user
+
         USDC.safeTransferFrom(msg.sender, address(this), _totalAmount);
-        
+
         uint256 totalDeposited = 0;
-        
+
         for (uint i = 0; i < _vaults.length; i++) {
             if (_amounts[i] == 0) continue;
-            
-            // Approve vault to spend
+
             IERC20 underlying = IYOVault(_vaults[i]).asset();
             underlying.approve(_vaults[i], _amounts[i]);
-            
-            // Deposit to YO vault
+
             uint256 shares = IYOVault(_vaults[i]).deposit(_amounts[i], address(this));
-            
-            // Track shares
+
             userVaultShares[msg.sender][_vaults[i]] += shares;
-            
-            // Update allocation
+
             VaultAllocation[] storage allocations = goalAllocations[_goalId];
             for (uint j = 0; j < allocations.length; j++) {
                 if (allocations[j].vault == _vaults[i]) {
@@ -327,8 +410,7 @@ contract VyoRouter is ReentrancyGuard, Ownable {
                     break;
                 }
             }
-            
-            // Record deposit
+
             userDeposits[msg.sender].push(DepositRecord({
                 timestamp: block.timestamp,
                 vault: _vaults[i],
@@ -336,39 +418,31 @@ contract VyoRouter is ReentrancyGuard, Ownable {
                 sharesReceived: shares,
                 goalId: _goalId
             }));
-            
+
             totalDeposited += _amounts[i];
-            
+
             emit SingleDeposit(msg.sender, _vaults[i], _amounts[i], shares, _goalId);
         }
-        
-        // Update goal current amount
+
         _updateGoalAmount(_goalId, totalDeposited);
-        
+
         emit BatchDeposit(msg.sender, _goalId, totalDeposited, _vaults.length);
     }
-    
-    /**
-     * @notice Simple deposit to single vault
-     */
+
     function depositToVault(
         address _vault,
         uint256 _amount,
         bytes32 _goalId
     ) external nonReentrant onlyGoalOwner(_goalId) {
-        // Transfer USDC
         USDC.safeTransferFrom(msg.sender, address(this), _amount);
-        
-        // Approve and deposit
+
         IERC20 underlying = IYOVault(_vault).asset();
         underlying.approve(_vault, _amount);
-        
+
         uint256 shares = IYOVault(_vault).deposit(_amount, address(this));
-        
-        // Track shares
+
         userVaultShares[msg.sender][_vault] += shares;
-        
-        // Update allocation
+
         VaultAllocation[] storage allocations = goalAllocations[_goalId];
         for (uint i = 0; i < allocations.length; i++) {
             if (allocations[i].vault == _vault) {
@@ -377,8 +451,7 @@ contract VyoRouter is ReentrancyGuard, Ownable {
                 break;
             }
         }
-        
-        // Record deposit
+
         userDeposits[msg.sender].push(DepositRecord({
             timestamp: block.timestamp,
             vault: _vault,
@@ -386,109 +459,86 @@ contract VyoRouter is ReentrancyGuard, Ownable {
             sharesReceived: shares,
             goalId: _goalId
         }));
-        
-        // Update goal
+
         _updateGoalAmount(_goalId, _amount);
-        
+
         emit SingleDeposit(msg.sender, _vault, _amount, shares, _goalId);
     }
 
     // ============ Withdrawals ============
-    
-    /**
-     * @notice Batch redeem from multiple vaults
-     */
+
     function batchRedeem(
         bytes32 _goalId,
         address[] calldata _vaults,
         uint256[] calldata _shares
     ) external nonReentrant onlyGoalOwner(_goalId) {
         require(_vaults.length == _shares.length, "VyoRouter: Length mismatch");
-        
+
         uint256 totalAssets = 0;
-        
+
         for (uint i = 0; i < _vaults.length; i++) {
             if (_shares[i] == 0) continue;
-            
-            // Redeem from vault
+
             uint256 assets = IYOVault(_vaults[i]).redeem(
                 _shares[i],
                 address(this),
                 address(this)
             );
-            
-            // Update shares tracking
+
             userVaultShares[msg.sender][_vaults[i]] -= _shares[i];
-            
-            // Update allocation
+
             VaultAllocation[] storage allocations = goalAllocations[_goalId];
             for (uint j = 0; j < allocations.length; j++) {
                 if (allocations[j].vault == _vaults[i]) {
                     allocations[j].shares -= _shares[i];
-                    // Calculate proportional amount removed
-                    uint256 amountRemoved = (allocations[j].depositedAmount * _shares[i]) / 
-                        (allocations[j].shares + _shares[i]); // Original shares
+                    uint256 amountRemoved = (allocations[j].depositedAmount * _shares[i]) /
+                        (allocations[j].shares + _shares[i]);
                     allocations[j].depositedAmount -= amountRemoved;
                     break;
                 }
             }
-            
+
             totalAssets += assets;
         }
-        
-        // Transfer USDC to user
+
         USDC.safeTransfer(msg.sender, totalAssets);
-        
-        // Update goal
+
         _updateGoalAmount(_goalId, 0, true);
-        
+
         emit BatchRedeem(msg.sender, _goalId, totalAssets, _vaults.length);
     }
-    
-    /**
-     * @notice Emergency exit - withdraw everything from all vaults
-     */
+
     function emergencyExit(bytes32 _goalId) external nonReentrant onlyGoalOwner(_goalId) {
         VaultAllocation[] storage allocations = goalAllocations[_goalId];
         uint256 totalAssets = 0;
         uint256 vaultCount = 0;
-        
+
         for (uint i = 0; i < allocations.length; i++) {
             if (allocations[i].shares == 0) continue;
-            
-            // Redeem all shares
+
             uint256 assets = IYOVault(allocations[i].vault).redeem(
                 allocations[i].shares,
                 address(this),
                 address(this)
             );
-            
+
             totalAssets += assets;
             vaultCount++;
-            
-            // Clear shares
+
             userVaultShares[msg.sender][allocations[i].vault] -= allocations[i].shares;
             allocations[i].shares = 0;
             allocations[i].depositedAmount = 0;
         }
-        
-        // Transfer all USDC to user
+
         USDC.safeTransfer(msg.sender, totalAssets);
-        
-        // Mark goal as inactive
+
         _deactivateGoal(_goalId);
-        
+
         emit EmergencyExit(msg.sender, totalAssets, vaultCount);
     }
 
     // ============ AI Agent Permissions ============
-    
-    /**
-     * @notice Approve an AI agent to manage funds
-     * @param _agent Agent address
-     * @param _spendLimit Max per-transaction spend
-     * @param _maxDailySpend Max daily spend limit
-     */
+
     function approveAgent(
         address _agent,
         uint256 _spendLimit,
@@ -496,12 +546,12 @@ contract VyoRouter is ReentrancyGuard, Ownable {
     ) external {
         require(_agent != address(0), "VyoRouter: Invalid agent");
         require(_spendLimit > 0, "VyoRouter: Invalid spend limit");
-        
+
         if (!approvedAgents[_agent]) {
             approvedAgents[_agent] = true;
             agentList.push(_agent);
         }
-        
+
         agentPermissions[msg.sender] = AgentPermission({
             approved: true,
             spendLimit: _spendLimit,
@@ -509,45 +559,28 @@ contract VyoRouter is ReentrancyGuard, Ownable {
             lastResetTime: block.timestamp,
             maxDailySpend: _maxDailySpend > 0 ? _maxDailySpend : MAX_DAILY_SPEND_DEFAULT
         });
-        
+
         emit AgentApproved(_agent, _spendLimit, _maxDailySpend);
     }
-    
-    /**
-     * @notice Revoke agent approval
-     */
+
     function revokeAgent(address _agent) external {
         require(approvedAgents[_agent], "VyoRouter: Agent not approved");
-        
+
         agentPermissions[msg.sender].approved = false;
-        
+
         emit AgentRevoked(_agent);
     }
-    
-    /**
-     * @notice Check if agent is approved for user
-     */
+
     function isAgentApproved(address _user, address _agent) external view returns (bool) {
         return approvedAgents[_agent] && agentPermissions[_user].approved;
     }
-    
-    /**
-     * @notice Get agent permission details
-     */
+
     function getAgentPermission(address _user) external view returns (AgentPermission memory) {
         return agentPermissions[_user];
     }
 
     // ============ Agent Actions ============
-    
-    /**
-     * @notice Agent rebalances funds between vaults (with user approval)
-     * @param _user User address
-     * @param _goalId Goal ID
-     * @param _fromVault Vault to withdraw from
-     * @param _toVault Vault to deposit to
-     * @param _shares Amount of shares to move
-     */
+
     function agentRebalance(
         address _user,
         bytes32 _goalId,
@@ -556,31 +589,26 @@ contract VyoRouter is ReentrancyGuard, Ownable {
         uint256 _shares
     ) external onlyAgent withinSpendLimit(_user, _shares) nonReentrant {
         require(isGoalOwner(_user, _goalId), "VyoRouter: Invalid goal");
-        
-        // Calculate asset value
+
         uint256 assets = IYOVault(_fromVault).previewRedeem(_shares);
-        
-        // Update spend tracking
+
         agentPermissions[_user].spentToday += assets;
-        
-        // 1. Redeem from source vault
+
         uint256 actualAssets = IYOVault(_fromVault).redeem(
             _shares,
             address(this),
             address(this)
         );
-        
-        // 2. Deposit to target vault
+
         IERC20 underlying = IYOVault(_toVault).asset();
         underlying.approve(_toVault, actualAssets);
         uint256 newShares = IYOVault(_toVault).deposit(actualAssets, address(this));
-        
-        // 3. Update allocations
+
         VaultAllocation[] storage allocations = goalAllocations[_goalId];
         for (uint i = 0; i < allocations.length; i++) {
             if (allocations[i].vault == _fromVault) {
                 allocations[i].shares -= _shares;
-                uint256 amountRemoved = (allocations[i].depositedAmount * _shares) / 
+                uint256 amountRemoved = (allocations[i].depositedAmount * _shares) /
                     (allocations[i].shares + _shares);
                 allocations[i].depositedAmount -= amountRemoved;
             }
@@ -589,68 +617,272 @@ contract VyoRouter is ReentrancyGuard, Ownable {
                 allocations[i].depositedAmount += actualAssets;
             }
         }
-        
-        // 4. Update user shares tracking
+
         userVaultShares[_user][_fromVault] -= _shares;
         userVaultShares[_user][_toVault] += newShares;
-        
+
         emit AgentAction(msg.sender, _user, _fromVault, _toVault, _shares, _goalId);
     }
 
-    // ============ View Functions ============
-    
+    // ============ Automation Configuration ============
+
     /**
-     * @notice Get user's position in a vault
+     * @notice Set automation config for a goal
+     * @param _goalId Goal ID
+     * @param _autoCompound Enable auto-compounding
+     * @param _autoRebalance Enable auto-rebalancing
+     * @param _compoundIntervalDays Days between compounds
+     * @param _rebalanceThresholdBps APY diff threshold in bps (200 = 2%)
+     * @param _minCompoundAmount Minimum yield to compound
      */
-    function getUserVaultPosition(address _user, address _vault) 
-        external 
-        view 
-        returns (uint256 shares, uint256 assets) 
+    function setAutomationConfig(
+        bytes32 _goalId,
+        bool _autoCompound,
+        bool _autoRebalance,
+        uint256 _compoundIntervalDays,
+        uint256 _rebalanceThresholdBps,
+        uint256 _minCompoundAmount
+    ) external onlyGoalOwner(_goalId) {
+        require(_compoundIntervalDays >= 1 && _compoundIntervalDays <= 365, "VyoRouter: Invalid interval");
+        require(_rebalanceThresholdBps <= 10000, "VyoRouter: Invalid threshold");
+
+        automationConfigs[_goalId] = AutomationConfig({
+            enabled: true,
+            autoCompound: _autoCompound,
+            autoRebalance: _autoRebalance,
+            compoundIntervalDays: _compoundIntervalDays,
+            rebalanceThresholdBps: _rebalanceThresholdBps,
+            minCompoundAmount: _minCompoundAmount
+        });
+
+        lastCompoundTime[_goalId] = block.timestamp;
+
+        emit AutomationConfigured(
+            _goalId,
+            _autoCompound,
+            _autoRebalance,
+            _compoundIntervalDays
+        );
+    }
+
+    /**
+     * @notice Disable automation for a goal
+     */
+    function disableAutomation(bytes32 _goalId) external onlyGoalOwner(_goalId) {
+        automationConfigs[_goalId].enabled = false;
+
+        emit AutomationDisabled(_goalId);
+    }
+
+    /**
+     * @notice Get automation config for a goal
+     */
+    function getAutomationConfig(bytes32 _goalId) external view returns (AutomationConfig memory) {
+        return automationConfigs[_goalId];
+    }
+
+    // ============ Automation Functions ============
+
+    /**
+     * @notice Manually trigger yield compounding (anyone can call)
+     */
+    function compoundYield(bytes32 _goalId) external nonReentrant {
+        _compoundYield(_goalId);
+    }
+
+    /**
+     * @notice Keeper can trigger compound for a specific goal
+     */
+    function keeperCompound(bytes32 _goalId) external onlyKeeper nonReentrant {
+        _compoundYield(_goalId);
+    }
+
+    /**
+     * @notice Set keeper registry address
+     */
+    function setKeeperRegistry(address _registry) external onlyOwner {
+        keeperRegistry = _registry;
+    }
+
+    /**
+     * @notice Set upkeep interval
+     */
+    function setUpkeepInterval(uint256 _interval) external onlyOwner {
+        require(_interval >= 1 hours && _interval <= 7 days, "VyoRouter: Invalid interval");
+        upkeepInterval = _interval;
+    }
+
+    // ============ Internal Automation Functions ============
+
+    function _checkUpkeepConditions(bytes32 _goalId)
+        internal
+        view
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
+        if (_goalId != 0) {
+            return _checkGoalAutomation(_goalId);
+        }
+
+        return (false, bytes("No specific goal checked"));
+    }
+
+    function _checkGoalAutomation(bytes32 _goalId)
+        internal
+        view
+        returns (bool, bytes memory)
+    {
+        AutomationConfig memory config = automationConfigs[_goalId];
+
+        if (!config.enabled) {
+            return (false, bytes("Automation disabled"));
+        }
+
+        // Check compound eligibility
+        if (config.autoCompound) {
+            uint256 daysSinceCompound = (block.timestamp - lastCompoundTime[_goalId]) /
+                1 days;
+
+            if (daysSinceCompound >= config.compoundIntervalDays) {
+                // Check if there's enough yield to compound
+                VaultAllocation[] memory allocations = goalAllocations[_goalId];
+                uint256 totalYield = 0;
+
+                for (uint i = 0; i < allocations.length; i++) {
+                    if (allocations[i].shares > 0) {
+                        uint256 currentValue = IYOVault(allocations[i].vault).previewRedeem(
+                            allocations[i].shares
+                        );
+                        if (currentValue > allocations[i].depositedAmount) {
+                            totalYield += currentValue - allocations[i].depositedAmount;
+                        }
+                    }
+                }
+
+                if (totalYield >= config.minCompoundAmount) {
+                    return (
+                        true,
+                        abi.encode(_goalId, AutomationAction.Compound)
+                    );
+                }
+            }
+        }
+
+        return (false, bytes("No action needed"));
+    }
+
+    function _compoundYield(bytes32 _goalId) internal {
+        AutomationConfig memory config = automationConfigs[_goalId];
+        VaultAllocation[] storage allocations = goalAllocations[_goalId];
+        uint256 totalYieldCompounded = 0;
+        uint256 newTotalShares = 0;
+
+        for (uint i = 0; i < allocations.length; i++) {
+            if (allocations[i].shares == 0) continue;
+
+            uint256 currentValue = IYOVault(allocations[i].vault).previewRedeem(
+                allocations[i].shares
+            );
+
+            if (currentValue > allocations[i].depositedAmount) {
+                uint256 yieldAmount = currentValue - allocations[i].depositedAmount;
+
+                // Skip if below minimum
+                if (yieldAmount < config.minCompoundAmount) continue;
+
+                // Redeem yield
+                uint256 redeemed = IYOVault(allocations[i].vault).redeem(
+                    yieldAmount,
+                    address(this),
+                    address(this)
+                );
+
+                // Deposit back (compound)
+                IERC20 asset = IYOVault(allocations[i].vault).asset();
+                asset.approve(allocations[i].vault, redeemed);
+
+                uint256 newShares = IYOVault(allocations[i].vault).deposit(
+                    redeemed,
+                    address(this)
+                );
+
+                // Update tracking
+                allocations[i].shares += newShares;
+                allocations[i].depositedAmount += redeemed;
+
+                totalYieldCompounded += redeemed;
+                newTotalShares += allocations[i].shares;
+            }
+        }
+
+        lastCompoundTime[_goalId] = block.timestamp;
+
+        if (totalYieldCompounded > 0) {
+            emit YieldCompounded(_goalId, totalYieldCompounded, newTotalShares);
+        }
+
+        emit UpkeepExecuted(_goalId, "Compound executed");
+    }
+
+    function _checkGoalStatus(bytes32 _goalId) internal {
+        Goal[] memory goals = userGoals[msg.sender];
+        for (uint i = 0; i < goals.length; i++) {
+            if (goals[i].id == _goalId) {
+                // Emit status for off-chain monitoring
+                emit UpkeepNeeded(
+                    _goalId,
+                    AutomationAction.Check,
+                    "Goal status check completed"
+                );
+                break;
+            }
+        }
+    }
+
+    // ============ View Functions ============
+
+    function getUserVaultPosition(address _user, address _vault)
+        external
+        view
+        returns (uint256 shares, uint256 assets)
     {
         shares = userVaultShares[_user][_vault];
         assets = IYOVault(_vault).previewRedeem(shares);
     }
-    
-    /**
-     * @notice Get user's deposit history
-     */
+
     function getUserDeposits(address _user) external view returns (DepositRecord[] memory) {
         return userDeposits[_user];
     }
-    
-    /**
-     * @notice Calculate yield for a goal
-     */
+
     function calculateGoalYield(bytes32 _goalId) external view returns (uint256) {
         VaultAllocation[] memory allocations = goalAllocations[_goalId];
         uint256 currentValue = 0;
         uint256 deposited = 0;
-        
+
         for (uint i = 0; i < allocations.length; i++) {
             if (allocations[i].shares > 0) {
                 currentValue += IYOVault(allocations[i].vault).previewRedeem(allocations[i].shares);
                 deposited += allocations[i].depositedAmount;
             }
         }
-        
+
         return currentValue > deposited ? currentValue - deposited : 0;
     }
-    
-    /**
-     * @notice Get all approved agents
-     */
+
     function getApprovedAgents() external view returns (address[] memory) {
         return agentList;
     }
 
-    // ============ Internal Functions ============
-    
+    function getGoalCount(address _user) external view returns (uint256) {
+        return userGoals[_user].length;
+    }
+
+    // ============ Internal Helpers ============
+
     function _updateGoalAmount(bytes32 _goalId, uint256 _addedAmount, bool _subtract) internal {
         Goal[] storage goals = userGoals[msg.sender];
         for (uint i = 0; i < goals.length; i++) {
             if (goals[i].id == _goalId) {
                 if (_subtract) {
-                    // Recalculate from allocations
                     VaultAllocation[] memory allocations = goalAllocations[_goalId];
                     uint256 total = 0;
                     for (uint j = 0; j < allocations.length; j++) {
@@ -664,11 +896,11 @@ contract VyoRouter is ReentrancyGuard, Ownable {
             }
         }
     }
-    
+
     function _updateGoalAmount(bytes32 _goalId, uint256 _addedAmount) internal {
         _updateGoalAmount(_goalId, _addedAmount, false);
     }
-    
+
     function _deactivateGoal(bytes32 _goalId) internal {
         Goal[] storage goals = userGoals[msg.sender];
         for (uint i = 0; i < goals.length; i++) {
