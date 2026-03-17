@@ -3,246 +3,503 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Dashboard" activePage="dashboard">
-    <!-- Hero: Total Net Worth -->
-    <div class="hero-stat" id="hero-stat">
-        <div class="hero-label">Total Net Worth</div>
-        <div class="hero-value" id="net-worth">$0.00</div>
-        <div class="stat-change" id="yield-today">
-            <span>↑</span>
-            <span id="yield-today-val">+$0.00 today</span>
+<style>
+  /* ── 2-col layout ── */
+  .dash-wrap {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 0;
+    min-height: calc(100vh - 56px);
+    box-sizing: border-box;
+  }
+
+  /* ── LEFT ── */
+  .dash-left {
+    padding: 24px 24px 24px;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  /* Wallet header row */
+  .wallet-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .wallet-label { font-size: 0.8125rem; color: #666; font-weight: 500; margin-bottom: 4px; }
+  .wallet-value { font-size: 2.75rem; font-weight: 800; color: #fff; letter-spacing: -2px; line-height: 1; }
+  .wallet-change {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.8125rem; font-weight: 600; color: #c8f135; margin-top: 6px;
+  }
+  .wallet-change svg { width: 13px; height: 13px; }
+
+  /* Time pills */
+  .time-pills { display: flex; gap: 3px; align-self: flex-start; margin-top: 4px; }
+  .time-pill {
+    padding: 5px 10px; border-radius: 7px;
+    font-size: 0.75rem; font-weight: 600; color: #555;
+    background: none; border: none; cursor: pointer;
+    font-family: var(--font); transition: all 0.15s;
+  }
+  .time-pill:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+  .time-pill.active { background: #c8f135; color: #000; }
+
+  /* Chart */
+  .chart-wrap {
+    background: #111; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px; padding: 16px 16px 10px;
+    position: relative; overflow: hidden; flex: 1;
+  }
+  .chart-tooltip {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; pointer-events: none;
+  }
+  .chart-tooltip-dot {
+    width: 11px; height: 11px; border-radius: 50%; background: #c8f135;
+    border: 2px solid #0a0a0a; box-shadow: 0 0 8px rgba(200,241,53,0.6);
+  }
+  .chart-tooltip-val { font-size: 0.875rem; font-weight: 700; color: #fff; }
+  canvas#chart { width: 100%; display: block; }
+
+  /* Stats row — 4 equal boxes */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .stat-box {
+    background: #111; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat-box-label {
+    font-size: 0.6875rem; color: #555; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .stat-box-val { font-size: 1.125rem; font-weight: 800; letter-spacing: -0.5px; }
+  .stat-box-val.pos { color: #c8f135; }
+  .stat-box-val.neg { color: #ef4444; }
+  .stat-box-sub { font-size: 0.6875rem; font-weight: 500; }
+  .stat-box-sub.pos { color: #c8f135; }
+  .stat-box-sub.neg { color: #ef4444; }
+  .stat-box-sub.muted { color: #555; }
+
+  /* ── RIGHT ── */
+  .dash-right {
+    padding: 24px 20px;
+    display: flex; flex-direction: column; gap: 22px;
+    overflow-y: auto;
+  }
+
+  /* Risk score */
+  .risk-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+  .risk-bar-wrap { margin: 12px 0 5px; }
+  .risk-bar-track {
+    width: 100%; height: 10px; background: rgba(255,255,255,0.07);
+    border-radius: 999px; overflow: hidden;
+  }
+  .risk-bar-fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, #c8f135 0%, #f59e0b 55%, #ef4444 100%);
+    transition: width 0.6s ease;
+  }
+  .risk-labels { display: flex; justify-content: space-between; font-size: 0.6875rem; color: #555; }
+
+  /* Transactions */
+  .section-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .section-hdr-title { font-size: 0.9375rem; font-weight: 700; }
+  .view-all { font-size: 0.75rem; color: #c8f135; font-weight: 600; text-decoration: none; }
+  .view-all:hover { text-decoration: underline; }
+
+  /* Transaction grid — 2 cols, cards are rectangular (auto height) */
+  .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .txn-card {
+    background: #161616; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px; padding: 14px 13px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .txn-card:hover { border-color: rgba(255,255,255,0.14); background: #1c1c1c; }
+
+  /* Lime highlight card */
+  .txn-card.lime {
+    background: #c8f135; border-color: #c8f135;
+  }
+  .txn-card.lime .txn-type,
+  .txn-card.lime .txn-date,
+  .txn-card.lime .txn-asset { color: rgba(0,0,0,0.55); }
+  .txn-card.lime .txn-amount { color: #000; }
+  .txn-card.lime .txn-status { color: rgba(0,0,0,0.6); }
+  .txn-card.lime .txn-sparkline path { stroke: rgba(0,0,0,0.25); }
+
+  /* Card top: icon + type + date */
+  .txn-top { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .txn-icon {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  .txn-type { font-size: 0.8125rem; font-weight: 600; color: #fff; line-height: 1.2; }
+  .txn-date { font-size: 0.6875rem; color: #555; margin-top: 1px; }
+
+  /* Sparkline */
+  .txn-sparkline { width: 100%; height: 36px; margin-bottom: 10px; }
+  .txn-sparkline svg { width: 100%; height: 100%; }
+
+  /* Bottom: asset + amount + status */
+  .txn-asset { font-size: 0.6875rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .txn-amount { font-size: 1.0625rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .txn-status { font-size: 0.6875rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .txn-status.confirmed { color: #c8f135; }
+  .txn-status.pending   { color: #f59e0b; }
+  .txn-status.failed    { color: #ef4444; }
+
+  /* Goals mini */
+  .goals-mini { display: flex; flex-direction: column; gap: 8px; }
+  .goal-mini {
+    background: #161616; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 11px 13px;
+  }
+  .goal-mini-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .goal-mini-name { font-size: 0.8125rem; font-weight: 600; }
+  .goal-mini-pct { font-size: 0.75rem; font-weight: 700; color: #c8f135; }
+  .goal-mini-bar { height: 4px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+  .goal-mini-fill { height: 100%; background: #c8f135; border-radius: 999px; }
+
+  @media (max-width: 960px) {
+    .dash-wrap { grid-template-columns: 1fr; }
+    .dash-left { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+
+<div class="dash-wrap">
+
+  <!-- ═══ LEFT ═══ -->
+  <div class="dash-left">
+
+    <!-- Wallet value + time pills -->
+    <div class="wallet-header">
+      <div>
+        <div class="wallet-label">Wallet Value</div>
+        <div class="wallet-value" id="wallet-value">$0.00</div>
+        <div class="wallet-change">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span id="wallet-change-val">+0%</span>
         </div>
-        <div class="hero-breakdown">
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">DeFi (YO Vaults)</div>
-                <div class="hero-breakdown-value green" id="defi-balance">
-                    $0
-                </div>
-            </div>
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">Traditional Bank</div>
-                <div class="hero-breakdown-value blue" id="tradfi-balance">
-                    $0
-                </div>
-            </div>
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">Yield Earned</div>
-                <div class="hero-breakdown-value purple" id="total-yield">
-                    $0
-                </div>
-            </div>
-        </div>
+      </div>
+      <div class="time-pills">
+        {["1h","8h","1d","1w","1m","6m","1y"].map((t) => (
+          <button class={`time-pill ${t === "6m" ? "active" : ""}`} data-range={t} onclick="setRange(this)">{t}</button>
+        ))}
+      </div>
     </div>
 
-    <!-- Yield Stats -->
-    <div class="stats-grid">
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield Today</div>
-            <div class="stat-value green" id="stat-yield-today">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield This Week</div>
-            <div class="stat-value green" id="stat-yield-week">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield This Month</div>
-            <div class="stat-value green" id="stat-yield-month">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Active Vaults</div>
-            <div class="stat-value blue" id="stat-vaults">0</div>
-        </div>
+    <!-- Chart -->
+    <div class="chart-wrap">
+      <div class="chart-tooltip" id="chart-tooltip" style="display:none;">
+        <div class="chart-tooltip-dot"></div>
+        <div class="chart-tooltip-val" id="chart-tooltip-val"></div>
+      </div>
+      <canvas id="chart"></canvas>
     </div>
 
-    <!-- Goals Progress -->
-    <div class="section-header">
-        <h2 class="section-title">🎯 Goal Progress</h2>
-        <a href="/dashboard/goals" class="btn btn-ghost">View All</a>
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-box-label">Realized P&L</div>
+        <div class="stat-box-val pos" id="s-today">$0.00</div>
+        <div class="stat-box-sub pos" id="s-today-pct">+0% Today</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Unrealized P&L</div>
+        <div class="stat-box-val neg" id="s-unrealized">$0.00</div>
+        <div class="stat-box-sub neg" id="s-unrealized-pct">0% Today</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Projected Growth</div>
+        <div class="stat-box-val pos" id="s-projected">$0.00</div>
+        <div class="stat-box-sub pos" id="s-projected-pct">+0% Today</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Net Change</div>
+        <div class="stat-box-val pos" id="s-net">$0.00</div>
+        <div class="stat-box-sub neg" id="s-net-pct">0% Today</div>
+      </div>
     </div>
 
-    <div class="goals-grid" id="goals-grid">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading goals...</div>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div class="dash-right">
+
+    <!-- Portfolio Risk Score -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="risk-title">Portfolio<br/>Risk Score</div>
+        <div style="text-align:right;">
+          <div style="font-size:0.6875rem;color:#555;">Updated:</div>
+          <div style="font-size:0.6875rem;color:#555;">Just Now</div>
         </div>
-    </div>
-
-    <!-- Recent AI Decisions -->
-    <div class="section-header" style="margin-top: var(--space-8);">
-        <h2 class="section-title">🤖 Recent WealthCoach Activity</h2>
-        <a href="/dashboard/ai" class="btn btn-ghost">View All</a>
-    </div>
-
-    <div class="decisions-list" id="decisions-list">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading decisions...</div>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="risk-fill" style="width:40%;"></div>
         </div>
+      </div>
+      <div class="risk-labels"><span>Low Risk</span><span>High Risk</span></div>
     </div>
 
-    <script>
-        const API = "/api";
+    <!-- Transactions -->
+    <div>
+      <div class="section-hdr">
+        <span class="section-hdr-title">Transactions</span>
+        <a href="/dashboard/goals" class="view-all">View All</a>
+      </div>
+      <div class="txn-grid" id="txn-grid">
+        <div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">Loading...</div>
+      </div>
+    </div>
 
-        function formatCurrency(n) {
-            return new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-            }).format(n);
-        }
+    <!-- Goals mini -->
+    <div>
+      <div class="section-hdr">
+        <span class="section-hdr-title">Goals</span>
+        <a href="/dashboard/goals" class="view-all">View All</a>
+      </div>
+      <div class="goals-mini" id="goals-mini">
+        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+      </div>
+    </div>
 
-        function formatCompact(n) {
-            if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-            if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-            if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
-            return formatCurrency(n);
-        }
+  </div>
+</div>
 
-        function getProgressColor(percent) {
-            if (percent >= 75) return "var(--accent-green)";
-            if (percent >= 50) return "var(--accent-blue)";
-            if (percent >= 25) return "var(--accent-amber)";
-            return "var(--accent-purple)";
-        }
+<script>
+const API = "/api";
+const fmt = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
+const fmtShort = (n: number) => {
+  const abs = Math.abs(n);
+  const sign = n >= 0 ? "+" : "-";
+  if(abs >= 1000) return sign + "$" + (abs/1000).toFixed(1) + "K";
+  return sign + fmt(abs);
+};
 
-        const allocationColors = [
-            "#3b82f6",
-            "#8b5cf6",
-            "#06b6d4",
-            "#10b981",
-            "#f59e0b",
-            "#ef4444",
-        ];
+// ── Chart ──────────────────────────────────────────────────
+const canvas = document.getElementById("chart") as HTMLCanvasElement;
+const ctx = canvas.getContext("2d")!;
+let chartData: number[] = [];
+let currentRange = "6m";
 
-        async function loadDashboard() {
-            try {
-                const res = await fetch(`${API}/dashboard`);
-                const json = await res.json();
-                if (!json.success) return;
-                const d = json.data;
+function generateChartData(range: string): number[] {
+  const points: Record<string,number> = { "1h":60,"8h":96,"1d":48,"1w":56,"1m":60,"6m":90,"1y":120 };
+  const count = points[range] || 90;
+  const base = 27000;
+  const data: number[] = [];
+  let val = base;
+  for(let i = 0; i < count; i++){
+    val += (Math.random() - 0.46) * 400;
+    val = Math.max(base * 0.7, Math.min(base * 1.6, val));
+    data.push(val);
+  }
+  return data;
+}
 
-                // Hero
-                document.getElementById("net-worth").textContent =
-                    formatCurrency(d.totalNetWorth);
-                document.getElementById("yield-today-val").textContent =
-                    `+${formatCurrency(d.yieldToday)} today`;
-                document.getElementById("defi-balance").textContent =
-                    formatCurrency(d.defiBalance);
-                document.getElementById("tradfi-balance").textContent =
-                    formatCurrency(d.tradFiBalance);
-                document.getElementById("total-yield").textContent =
-                    formatCurrency(d.totalYieldEarned);
+function drawChart(data: number[], hoverIdx = -1) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement!.clientWidth - 32;
+  const H = 340;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx.scale(dpr, dpr);
 
-                // Stats
-                document.getElementById("stat-yield-today").textContent =
-                    formatCurrency(d.yieldToday);
-                document.getElementById("stat-yield-week").textContent =
-                    formatCurrency(d.yieldWeek);
-                document.getElementById("stat-yield-month").textContent =
-                    formatCurrency(d.yieldMonth);
-                document.getElementById("stat-vaults").textContent =
-                    d.activeVaults;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const rng = max - min || 1;
+  const padY = 16;
 
-                // Goals
-                const goalsGrid = document.getElementById("goals-grid");
-                if (d.goalSummaries.length === 0) {
-                    goalsGrid.innerHTML = `
-            <div class="glass-card empty-state">
-              <div class="empty-state-icon">🎯</div>
-              <div class="empty-state-text">No goals yet</div>
-              <a href="/dashboard/goals" class="btn btn-primary">Create Your First Goal</a>
-            </div>
-          `;
-                } else {
-                    goalsGrid.innerHTML = d.goalSummaries
-                        .map(
-                            (g) => `
-            <div class="glass-card goal-card">
-              <div class="goal-card-header">
-                <div class="goal-name">${g.name}</div>
-                ${g.progressPercent >= 75 ? '<span class="milestone-badge">🎉 Almost there!</span>' : ""}
-                ${g.progressPercent >= 100 ? '<span class="milestone-badge">🏆 Complete!</span>' : ""}
+  const px = (i: number) => (i / (data.length - 1)) * W;
+  const py = (v: number) => H - padY - ((v - min) / rng) * (H - padY * 2);
+
+  // Vertical grid lines
+  ctx.strokeStyle = "rgba(255,255,255,0.04)";
+  ctx.lineWidth = 1;
+  for(let i = 0; i <= 20; i++){
+    const x = (i / 20) * W;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "rgba(200,241,53,0.18)");
+  grad.addColorStop(1, "rgba(200,241,53,0)");
+  ctx.beginPath();
+  ctx.moveTo(px(0), H);
+  data.forEach((v, i) => ctx.lineTo(px(i), py(v)));
+  ctx.lineTo(px(data.length - 1), H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = "#c8f135";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  data.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
+  ctx.stroke();
+
+  // Hover
+  if(hoverIdx >= 0 && hoverIdx < data.length){
+    const hx = px(hoverIdx), hy = py(data[hoverIdx]);
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(200,241,53,0.3)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(hx, 0); ctx.lineTo(hx, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#c8f135";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(hx, hy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fill();
+  }
+}
+
+function setRange(btn: HTMLElement) {
+  document.querySelectorAll(".time-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentRange = btn.dataset.range!;
+  chartData = generateChartData(currentRange);
+  drawChart(chartData);
+  document.getElementById("chart-tooltip")!.style.display = "none";
+}
+(window as any).setRange = setRange;
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const idx = Math.round(((e.clientX - rect.left) / rect.width) * (chartData.length - 1));
+  const clamped = Math.max(0, Math.min(chartData.length - 1, idx));
+  drawChart(chartData, clamped);
+  const tt = document.getElementById("chart-tooltip")!;
+  tt.style.display = "flex";
+  document.getElementById("chart-tooltip-val")!.textContent = fmtShort(chartData[clamped] - chartData[0]);
+});
+canvas.addEventListener("mouseleave", () => {
+  drawChart(chartData);
+  document.getElementById("chart-tooltip")!.style.display = "none";
+});
+
+// ── Sparkline helper ──────────────────────────────────────
+function sparkPath(data: number[], w: number, h: number): string {
+  const min = Math.min(...data), max = Math.max(...data);
+  const rng = max - min || 1;
+  const pts = data.map((v, i) => `${(i/(data.length-1))*w},${h - ((v-min)/rng)*h}`);
+  return "M" + pts.join("L");
+}
+function genSpark(seed: number, count = 20): number[] {
+  let v = 50 + seed * 7;
+  return Array.from({length: count}, () => { v += (Math.random() - 0.48) * 8; return Math.max(10, Math.min(90, v)); });
+}
+
+// ── Load dashboard data ───────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch(`${API}/dashboard`);
+    const json = await res.json();
+    if(!json.success) return;
+    const d = json.data;
+
+    // Wallet value
+    document.getElementById("wallet-value")!.textContent = fmt(d.totalNetWorth);
+    const pct = d.defiBalance > 0 ? ((d.totalYieldEarned / d.defiBalance) * 100).toFixed(1) : "4.6";
+    document.getElementById("wallet-change-val")!.textContent = `+${pct}%`;
+
+    // Stats
+    document.getElementById("s-today")!.textContent = fmt(d.yieldToday);
+    document.getElementById("s-today-pct")!.textContent = `+${((d.yieldToday / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+    document.getElementById("s-unrealized")!.textContent = fmt(-d.yieldToday * 0.36);
+    document.getElementById("s-unrealized-pct")!.textContent = `-${(0.36 * ((d.yieldToday / (d.totalNetWorth||1)) * 100)).toFixed(1)}% Today`;
+    document.getElementById("s-projected")!.textContent = fmt(d.yieldMonth * 12);
+    document.getElementById("s-projected-pct")!.textContent = `+${((d.yieldMonth * 12 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+    document.getElementById("s-net")!.textContent = fmt(d.totalYieldEarned);
+    document.getElementById("s-net-pct")!.textContent = `-${((d.yieldToday * 0.1 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+
+    // Risk bar
+    document.getElementById("risk-fill")!.style.width = "40%";
+
+    // Transactions
+    const txns = d.recentDecisions.slice(0, 6);
+    const icons: Record<string,string> = { rebalance:"⇄", deposit_suggestion:"↓", goal_forecast:"◎", risk_alert:"⚠" };
+    const colors = ["#f97316","#3b82f6","#8b5cf6","#06b6d4","#c8f135","#ec4899"];
+    const grid = document.getElementById("txn-grid")!;
+
+    if(txns.length === 0) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">No recent activity</div>`;
+    } else {
+      const padded = txns.length % 2 !== 0 ? [...txns, null] : txns;
+      grid.innerHTML = padded.map((t: any, i: number) => {
+        if(!t) return `<div class="txn-card" style="opacity:0;pointer-events:none;"></div>`;
+        const isLime = i === 2;
+        const spark = genSpark(i);
+        const path = sparkPath(spark, 120, 36);
+        const amount = t.expectedGain >= 0 ? `+${fmt(t.expectedGain)}` : fmt(t.expectedGain);
+        const status = t.status === "executed" ? "confirmed" : t.status === "rejected" ? "failed" : "pending";
+        const statusIcon = status === "confirmed" ? "✓" : status === "failed" ? "✕" : "◷";
+        const color = colors[i % colors.length];
+        const typeLabel = t.type.replace(/_/g," ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        const dateStr = new Date(t.createdAt).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+        return `
+          <div class="txn-card ${isLime ? "lime" : ""}">
+            <div class="txn-top">
+              <div class="txn-icon" style="background:${isLime?"rgba(0,0,0,0.12)":color+"22"};color:${isLime?"#000":color};">
+                ${icons[t.type]||"◎"}
               </div>
-              <div class="goal-progress-section">
-                <div class="goal-amounts">
-                  <span class="goal-current">${formatCurrency(g.currentAmount)}</span>
-                  <span class="goal-target">of ${formatCurrency(g.targetAmount)}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${g.progressPercent}%; background: linear-gradient(90deg, ${getProgressColor(g.progressPercent)}, ${getProgressColor(g.progressPercent)}dd);"></div>
-                </div>
-                <div class="goal-percent">${g.progressPercent}% complete</div>
-              </div>
-              <div class="goal-deadline">
-                📅 Target: ${new Date(g.deadline).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              <div>
+                <div class="txn-type">${typeLabel}</div>
+                <div class="txn-date">${dateStr}</div>
               </div>
             </div>
-          `,
-                        )
-                        .join("");
-                }
-
-                // Decisions
-                const decList = document.getElementById("decisions-list");
-                const recent = d.recentDecisions.slice(0, 3);
-                if (recent.length === 0) {
-                    decList.innerHTML = `
-            <div class="glass-card empty-state">
-              <div class="empty-state-icon">🤖</div>
-              <div class="empty-state-text">No recent AI activity</div>
+            <div class="txn-sparkline">
+              <svg viewBox="0 0 120 36" preserveAspectRatio="none">
+                <path d="${path}" fill="none" stroke="${isLime?"rgba(0,0,0,0.25)":"rgba(200,241,53,0.5)"}" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
             </div>
-          `;
-                } else {
-                    decList.innerHTML = recent
-                        .map(
-                            (dec) => `
-            <div class="glass-card decision-card ${dec.type}">
-              <div class="decision-header">
-                <span class="decision-type-badge ${dec.type}">${dec.type.replace("_", " ")}</span>
-                <span class="decision-status-badge ${dec.status}">${dec.status.replace("_", " ")}</span>
-              </div>
-              <div class="decision-action">${dec.action}</div>
-              <div class="decision-goal">Goal: ${dec.goalName}</div>
-              <div class="decision-reasoning">${dec.reasoning}</div>
-              ${
-                  dec.status === "pending_approval"
-                      ? `
-                <div class="decision-actions">
-                  <button class="btn btn-success" onclick="approveDecision('${dec.id}')">✓ Approve</button>
-                  <button class="btn btn-ghost" onclick="rejectDecision('${dec.id}')">✕ Dismiss</button>
-                </div>
-              `
-                      : ""
-              }
-            </div>
-          `,
-                        )
-                        .join("");
-                }
-            } catch (err) {
-                console.error("Failed to load dashboard:", err);
-            }
-        }
+            <div class="txn-asset">${t.goalName}</div>
+            <div class="txn-amount">${amount}</div>
+            <div class="txn-status ${status}">${statusIcon} ${status.charAt(0).toUpperCase()+status.slice(1)}</div>
+          </div>`;
+      }).join("");
+    }
 
-        async function approveDecision(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/approve`, {
-                    method: "POST",
-                });
-                loadDashboard();
-            } catch (err) {
-                console.error("Failed to approve:", err);
-            }
-        }
+    // Goals mini
+    const goalsMini = document.getElementById("goals-mini")!;
+    if(d.goalSummaries.length === 0) {
+      goalsMini.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
+    } else {
+      goalsMini.innerHTML = d.goalSummaries.map((g: any) => `
+        <div class="goal-mini">
+          <div class="goal-mini-top">
+            <span class="goal-mini-name">${g.name}</span>
+            <span class="goal-mini-pct">${g.progressPercent}%</span>
+          </div>
+          <div class="goal-mini-bar">
+            <div class="goal-mini-fill" style="width:${g.progressPercent}%;"></div>
+          </div>
+        </div>`).join("");
+    }
 
-        async function rejectDecision(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/reject`, {
-                    method: "POST",
-                });
-                loadDashboard();
-            } catch (err) {
-                console.error("Failed to reject:", err);
-            }
-        }
+  } catch(err) {
+    console.error("Dashboard load failed:", err);
+  }
+}
 
-        // Load on ready
-        loadDashboard();
-    </script>
+// Init
+chartData = generateChartData(currentRange);
+drawChart(chartData);
+window.addEventListener("resize", () => drawChart(chartData));
+loadDashboard();
+</script>
+
 </MainLayout>
