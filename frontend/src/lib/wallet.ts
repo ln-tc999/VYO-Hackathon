@@ -1,32 +1,23 @@
 // ============================================================
 // Wallet Configuration
-// Wagmi + WalletConnect setup for Vyo Apps
+// Wagmi + WalletConnect + Contract ABIs for Vyo Apps
 // ============================================================
 
-import { createConfig, http } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { createConfig, http, type Config } from 'wagmi';
+import { baseSepolia, base } from 'wagmi/chains';
 import { injected, walletConnect } from 'wagmi/connectors';
 
-// WalletConnect project ID from environment
 const projectId = import.meta.env.PUBLIC_WALLET_CONNECT_PROJECT_ID || '';
 
-if (!projectId) {
-  console.warn('[WALLET] WalletConnect project ID not configured. Please set PUBLIC_WALLET_CONNECT_PROJECT_ID in .env.local');
-}
-
-// Using Base Sepolia Testnet (chain ID: 84532)
-// For mainnet, change PUBLIC_CHAIN_ID to 8453 in .env.local
 const chainId = parseInt(import.meta.env.PUBLIC_CHAIN_ID || '84532');
-
-// Supported chains - testnet only
-export const supportedChains = [baseSepolia] as const;
+const currentChain = chainId === 8453 ? base : baseSepolia;
 
 // Create wagmi config
-export const wagmiConfig = createConfig({
-  chains: supportedChains,
+export const wagmiConfig: Config = createConfig({
+  chains: [currentChain],
   connectors: [
     injected({ target: 'metaMask' }),
-    walletConnect({
+    projectId ? walletConnect({
       projectId,
       showQrModal: true,
       metadata: {
@@ -35,30 +26,33 @@ export const wagmiConfig = createConfig({
         url: 'https://vyo.finance',
         icons: ['https://vyo.finance/icon.png'],
       },
-    }),
-  ],
+    }) : undefined,
+  ].filter(Boolean) as any,
   transports: {
-    [baseSepolia.id]: http(),
+    [currentChain.id]: http(),
   },
 });
 
-// Contract addresses on Base Sepolia Testnet
-// TODO: Update with actual testnet addresses after deployment
+// Contract addresses - Updated after deployment
 export const CONTRACTS = {
-  VyoRouter: '0x0000000000000000000000000000000000000000', // Deploy to testnet first
-  USDC: '0x036cBd53842c5426634E92B0C9D5eb112A4E1d4d', // Base Sepolia USDC
-  yoUSD: '0x0000000000000000000000000000000000000000', // TODO: YO testnet vault address
+  VyoRouter: '0x94B98209622EF89426dA8FCCa73BeA096AA43Ff5' as `0x${string}`,
+  USDC: '0x036cBd53842c5426634E92B0C9D5eb112A4E1d4d' as `0x${string}`,
+  LINK: '0xE4aB69F9778dA6FB41D87d28E9D5f2A3cF9E0E8F' as `0x${string}`,
 };
 
-// YO Vault addresses on Testnet
-// TODO: Update with actual YO testnet vault addresses
-export const YO_VAULTS = {
-  yoUSD: {
-    address: '0x0000000000000000000000000000000000000000', // TODO: Deploy or get from YO
-    asset: '0x036CbD53842c5426634e92b0c9D5eB112A4E1D4D', // Base Sepolia USDC
+export const currentChainId = chainId;
+
+export const CHAIN_INFO = {
+  84532: {
+    name: 'Base Sepolia',
+    explorer: 'https://sepolia.basescan.org',
+    faucet: 'https://www.coinbase.com/faucets/base-sepolia-faucet',
   },
-  // Add more vaults as needed
+  8453: {
+    name: 'Base',
+    explorer: 'https://basescan.org',
+    faucet: null,
+  },
 };
 
-// Testnet faucet: https://www.coinbase.com/faucets/base-sepolia-faucet
-// Block explorer: https://sepolia.basescan.org
+export const chainInfo = CHAIN_INFO[chainId as keyof typeof CHAIN_INFO] || CHAIN_INFO[84532];
