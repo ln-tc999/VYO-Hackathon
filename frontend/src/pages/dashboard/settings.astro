@@ -3,262 +3,152 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="Settings" activePage="settings">
+<div style="padding:28px 24px;">
 
-<MainLayout title="Settings" activePage="settings">
-    <div class="page-header">
-        <h1 class="page-title">⚙️ Settings</h1>
-        <p class="page-subtitle">
-            Configure your risk profile, auto-deposit rules, and emergency
-            controls.
-        </p>
+  <div class="page-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Configure your risk profile, auto-deposit rules, and emergency controls.</p>
+  </div>
+
+  <!-- Risk Profile -->
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s6);margin-bottom:var(--s5);">
+    <div style="font-size:var(--font-base);font-weight:600;margin-bottom:var(--s2);">Risk Profile</div>
+    <p style="color:var(--text-secondary);margin-bottom:var(--s5);font-size:var(--font-sm);">
+      Determines how new deposits are split across YO Protocol vaults.
+    </p>
+    <div style="display:flex;gap:var(--s3);" id="risk-selector">
+      <button class="btn btn-ghost risk-btn" data-risk="conservative" onclick="setRisk('conservative',this)" style="flex:1;flex-direction:column;height:auto;padding:var(--s4);gap:var(--s1);">
+        <div style="font-size:1.25rem;">🛡️</div>
+        <div style="font-weight:600;">Conservative</div>
+        <div style="font-size:var(--font-xs);color:var(--text-muted);">Capital preservation</div>
+      </button>
+      <button class="btn btn-primary risk-btn" data-risk="moderate" onclick="setRisk('moderate',this)" style="flex:1;flex-direction:column;height:auto;padding:var(--s4);gap:var(--s1);">
+        <div style="font-size:1.25rem;">⚖️</div>
+        <div style="font-weight:600;">Moderate</div>
+        <div style="font-size:var(--font-xs);color:rgba(0,0,0,0.6);">Balanced growth</div>
+      </button>
+      <button class="btn btn-ghost risk-btn" data-risk="aggressive" onclick="setRisk('aggressive',this)" style="flex:1;flex-direction:column;height:auto;padding:var(--s4);gap:var(--s1);">
+        <div style="font-size:1.25rem;">🚀</div>
+        <div style="font-weight:600;">Aggressive</div>
+        <div style="font-size:var(--font-xs);color:var(--text-muted);">Maximum yield</div>
+      </button>
     </div>
+    <div id="strategy-preview" style="margin-top:var(--s6);"></div>
+  </div>
 
-    <!-- Risk Profile -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            📊 Risk Profile
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Your risk profile determines how new deposits are split across YO
-            Protocol vaults.
-        </p>
-        <div style="display: flex; gap: var(--space-3);" id="risk-selector">
-            <button
-                class="btn btn-ghost btn-lg risk-btn"
-                data-risk="conservative"
-                onclick="setRisk('conservative', this)"
-                style="flex:1;"
-            >
-                <div>🛡️ Conservative</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Capital preservation
-                </div>
-            </button>
-            <button
-                class="btn btn-primary btn-lg risk-btn"
-                data-risk="moderate"
-                onclick="setRisk('moderate', this)"
-                style="flex:1;"
-            >
-                <div>⚖️ Moderate</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Balanced growth
-                </div>
-            </button>
-            <button
-                class="btn btn-ghost btn-lg risk-btn"
-                data-risk="aggressive"
-                onclick="setRisk('aggressive', this)"
-                style="flex:1;"
-            >
-                <div>🚀 Aggressive</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Maximum yield
-                </div>
-            </button>
-        </div>
-
-        <div id="strategy-preview" style="margin-top: var(--space-6);"></div>
+  <!-- Auto-Deposit -->
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s6);margin-bottom:var(--s5);">
+    <div style="font-size:var(--font-base);font-weight:600;margin-bottom:var(--s2);">Auto-Deposit</div>
+    <p style="color:var(--text-secondary);margin-bottom:var(--s5);font-size:var(--font-sm);">
+      Auto-deposit pauses if your bank balance drops below the safety threshold.
+    </p>
+    <div class="input-group">
+      <label class="input-label">Bank Balance Safety Threshold</label>
+      <input type="number" class="input" id="threshold-input" placeholder="1000" value="1000" style="max-width:280px;" />
     </div>
+    <button class="btn btn-primary" onclick="saveThreshold()">Save</button>
+  </div>
 
-    <!-- Auto-Deposit -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            🔄 Auto-Deposit
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Automatically deposit to your goals on a schedule. Auto-deposit
-            pauses if your bank balance is below the safety threshold.
-        </p>
-
-        <div class="input-group">
-            <label class="input-label">Bank Balance Safety Threshold</label>
-            <input
-                type="number"
-                class="input"
-                id="threshold-input"
-                placeholder="1000"
-                value="1000"
-                style="max-width: 300px;"
-            />
-            <p
-                style="font-size: var(--font-xs); color: var(--text-muted); margin-top: var(--space-1);"
-            >
-                Auto-deposits pause if your bank balance drops below this
-                amount.
-            </p>
-        </div>
-
-        <button class="btn btn-primary" onclick="saveThreshold()"
-            >Save Threshold</button
-        >
+  <!-- Wallet -->
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s6);margin-bottom:var(--s5);">
+    <div style="font-size:var(--font-base);font-weight:600;margin-bottom:var(--s2);">Wallet</div>
+    <p style="color:var(--text-secondary);margin-bottom:var(--s5);font-size:var(--font-sm);">
+      Connect your wallet to execute live transactions on Base or Ethereum.
+    </p>
+    <div style="display:flex;align-items:center;gap:var(--s4);">
+      <div style="padding:var(--s3) var(--s4);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-md);font-family:monospace;font-size:var(--font-sm);color:var(--text-secondary);" id="wallet-addr">
+        0x742d...2bD18 (Demo)
+      </div>
+      <button class="btn btn-ghost">Change</button>
     </div>
+  </div>
 
-    <!-- Wallet Management -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            👛 Wallet
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Connect your wallet to execute live transactions on Base or
-            Ethereum.
-        </p>
-        <div style="display: flex; align-items: center; gap: var(--space-4);">
-            <div
-                style="padding: var(--space-3) var(--space-5); background: var(--bg-glass); border-radius: var(--radius-md); font-family: monospace; font-size: var(--font-sm); color: var(--text-secondary);"
-                id="wallet-addr"
-            >
-                0x742d...2bD18 (Demo)
-            </div>
-            <button class="btn btn-ghost">Change Wallet</button>
-        </div>
-    </div>
+  <!-- Emergency -->
+  <div style="background:var(--bg-card);border:1px solid rgba(239,68,68,0.2);border-radius:var(--r-lg);padding:var(--s6);">
+    <div style="font-size:var(--font-base);font-weight:600;margin-bottom:var(--s2);color:var(--red);">Emergency Withdraw</div>
+    <p style="color:var(--text-secondary);margin-bottom:var(--s5);font-size:var(--font-sm);">
+      Withdraw all funds from all vaults to stablecoins. Use only in an emergency.
+    </p>
+    <button class="btn btn-danger btn-lg" onclick="emergencyWithdraw()">
+      Withdraw All to Stablecoin
+    </button>
+    <p style="font-size:var(--font-xs);color:var(--text-muted);margin-top:var(--s3);">
+      This redeems all vault positions and converts to USDC. Gas costs apply. Requires confirmation.
+    </p>
+  </div>
 
-    <!-- Emergency Controls -->
-    <div
-        class="glass-card-static"
-        style="border-color: rgba(239, 68, 68, 0.3);"
-    >
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600; color: var(--accent-red);"
-        >
-            🚨 Emergency Controls
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-6); font-size: var(--font-sm);"
-        >
-            Withdraw all funds from all vaults to stablecoins. Use this only in
-            an emergency.
-        </p>
-        <button class="btn btn-danger btn-lg" onclick="emergencyWithdraw()">
-            🚨 Withdraw All to Stablecoin
-        </button>
-        <p
-            style="font-size: var(--font-xs); color: var(--text-muted); margin-top: var(--space-3);"
-        >
-            This will redeem all vault positions and convert to USDC. Gas costs
-            may apply. This action requires your confirmation.
-        </p>
-    </div>
-
-    <script>
-        interface Window {
-            setRisk: (profile: string, btn: HTMLButtonElement) => void;
-            renderStrategyPreview: (profile: string) => void;
-            saveThreshold: () => void;
-            showToast: (message: string) => void;
-            emergencyWithdraw: () => void;
-        }
-
-        const strategies = {
-            conservative: [
-                { name: "YO USD Vault", pct: 40, color: "#3b82f6" },
-                { name: "YO USDT Vault", pct: 35, color: "#8b5cf6" },
-                { name: "YO EUR Vault", pct: 25, color: "#06b6d4" },
-            ],
-            moderate: [
-                { name: "YO USD Vault", pct: 20, color: "#3b82f6" },
-                { name: "YO ETH Vault", pct: 40, color: "#10b981" },
-                { name: "YO Gold Vault", pct: 20, color: "#f59e0b" },
-                { name: "YO EUR Vault", pct: 20, color: "#06b6d4" },
-            ],
-            aggressive: [
-                { name: "YO USD Vault", pct: 10, color: "#3b82f6" },
-                { name: "YO ETH Vault", pct: 45, color: "#10b981" },
-                { name: "YO BTC Vault", pct: 30, color: "#f59e0b" },
-                { name: "YO Gold Vault", pct: 15, color: "#8b5cf6" },
-            ],
-        };
-
-        (window as any).setRisk = function (profile, btn) {
-            document.querySelectorAll(".risk-btn").forEach((b) => {
-                b.classList.remove("btn-primary");
-                b.classList.add("btn-ghost");
-            });
-            btn.classList.remove("btn-ghost");
-            btn.classList.add("btn-primary");
-
-            (window as any).renderStrategyPreview(profile);
-        };
-
-        (window as any).renderStrategyPreview = function (profile) {
-            const strat = strategies[profile];
-            const preview = document.getElementById("strategy-preview");
-            if (!preview) return;
-
-            preview.innerHTML = `
-        <div style="font-size: var(--font-sm); font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-3);">
-          Allocation Preview
-        </div>
-        <div style="display: flex; height: 12px; border-radius: var(--radius-full); overflow: hidden; margin-bottom: var(--space-3);">
-          ${strat.map((s) => `<div style="width: ${s.pct}%; background: ${s.color}; transition: width 0.3s;"></div>`).join("")}
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: var(--space-3);">
-          ${strat
-              .map(
-                  (s) => `
-            <div style="display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-xs);">
-              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${s.color};"></div>
-              <span style="color: var(--text-secondary);">${s.name}</span>
-              <span style="font-weight: 700;">${s.pct}%</span>
-            </div>
-          `,
-              )
-              .join("")}
-        </div>
-      `;
-        };
-
-        (window as any).saveThreshold = function () {
-            const input = document.getElementById("threshold-input") as HTMLInputElement | null;
-            if (!input) return;
-            const val = input.value;
-            (window as any).showToast(`Safety threshold set to $${val}`);
-        };
-
-        (window as any).emergencyWithdraw = function () {
-            if (
-                confirm(
-                    "⚠️ EMERGENCY WITHDRAW\n\nThis will withdraw ALL funds from ALL vaults.\n\nAre you absolutely sure?",
-                )
-            ) {
-                if (
-                    confirm("Final confirmation: Withdraw everything to USDC?")
-                ) {
-                    (window as any).showToast(
-                        "🚨 Emergency withdrawal initiated... (demo mode)",
-                    );
-                }
-            }
-        };
-
-        (window as any).showToast = function (message) {
-            const toast = document.createElement("div");
-            toast.style.cssText =
-                "position:fixed;top:20px;right:20px;z-index:9999;background:var(--bg-card);border:1px solid var(--border-glass-hover);color:var(--text-primary);padding:14px 20px;border-radius:var(--radius-md);font-weight:500;font-size:0.9rem;box-shadow:var(--shadow-lg);backdrop-filter:blur(20px);animation:celebrate 0.3s ease-out;";
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        };
-
-        (window as any).renderStrategyPreview("moderate");
-    </script>
+</div>
 </MainLayout>
+
+<script>
+  const strategies = {
+    conservative: [
+      { name: "YO USD Vault",  pct: 40, color: "#c8f135" },
+      { name: "YO USDT Vault", pct: 35, color: "#3b82f6" },
+      { name: "YO EUR Vault",  pct: 25, color: "#a78bfa" },
+    ],
+    moderate: [
+      { name: "YO USD Vault",  pct: 20, color: "#c8f135" },
+      { name: "YO ETH Vault",  pct: 40, color: "#3b82f6" },
+      { name: "YO Gold Vault", pct: 20, color: "#f59e0b" },
+      { name: "YO EUR Vault",  pct: 20, color: "#a78bfa" },
+    ],
+    aggressive: [
+      { name: "YO USD Vault",  pct: 10, color: "#c8f135" },
+      { name: "YO ETH Vault",  pct: 45, color: "#3b82f6" },
+      { name: "YO BTC Vault",  pct: 30, color: "#f59e0b" },
+      { name: "YO Gold Vault", pct: 15, color: "#a78bfa" },
+    ],
+  };
+
+  function setRisk(profile: string, btn: HTMLElement) {
+    document.querySelectorAll(".risk-btn").forEach(b => {
+      b.classList.remove("btn-primary"); b.classList.add("btn-ghost");
+      (b.querySelector("div:last-child") as HTMLElement).style.color = "var(--text-muted)";
+    });
+    btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary");
+    (btn.querySelector("div:last-child") as HTMLElement).style.color = "rgba(0,0,0,0.6)";
+    renderStrategyPreview(profile);
+  }
+
+  function renderStrategyPreview(profile) {
+    const strat = strategies[profile];
+    const preview = document.getElementById("strategy-preview");
+    preview.innerHTML = `
+      <div style="font-size:var(--font-xs);font-weight:600;color:var(--text-muted);margin-bottom:var(--s3);text-transform:uppercase;letter-spacing:0.06em;">Allocation Preview</div>
+      <div style="display:flex;height:8px;border-radius:var(--r-full);overflow:hidden;margin-bottom:var(--s3);">
+        ${strat.map(s => `<div style="width:${s.pct}%;background:${s.color};transition:width 0.3s;"></div>`).join("")}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--s4);">
+        ${strat.map(s => `
+          <div style="display:flex;align-items:center;gap:var(--s2);font-size:var(--font-xs);">
+            <div style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0;"></div>
+            <span style="color:var(--text-secondary);">${s.name}</span>
+            <span style="font-weight:700;">${s.pct}%</span>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  function saveThreshold() {
+    const val = (document.getElementById("threshold-input") as HTMLInputElement).value;
+    showToast(`Safety threshold set to $${val}`);
+  }
+
+  function emergencyWithdraw() {
+    if (confirm("⚠️ EMERGENCY WITHDRAW\n\nThis will withdraw ALL funds from ALL vaults.\n\nAre you sure?")) {
+      if (confirm("Final confirmation: Withdraw everything to USDC?")) {
+        showToast("Emergency withdrawal initiated (demo mode)");
+      }
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "position:fixed;top:20px;right:20px;z-index:9999;background:var(--bg-card);border:1px solid var(--border-hover);color:var(--text-primary);padding:12px 18px;border-radius:var(--r-md);font-weight:500;font-size:var(--font-sm);box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:celebrate 0.3s ease-out;";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  renderStrategyPreview("moderate");
+</script>
