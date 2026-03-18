@@ -273,7 +273,7 @@ transactionsRouter.post('/deposit', async (req, res) => {
         const depositAmount = (allocation.percentage / 100) * amount;
 
         try {
-            const result = await yoService.deposit(
+            const result = await yoService.buildDepositWithApproval(
                 allocation.vaultId,
                 depositAmount,
                 userAddress
@@ -287,7 +287,7 @@ transactionsRouter.post('/deposit', async (req, res) => {
                 vaultId: allocation.vaultId,
                 vaultName: allocation.vaultName,
                 amount: depositAmount,
-                txHash: result.hash,
+                txHash: result.transactions[0]?.to || '',
                 status: 'confirmed',
                 createdAt: new Date().toISOString(),
             };
@@ -365,7 +365,11 @@ transactionsRouter.post('/redeem', async (req, res) => {
     const userAddress = user?.walletAddress || '0x0';
 
     try {
-        const result = await yoService.redeem(vaultId, amount, userAddress);
+        const result = await yoService.buildRedeemWithApproval(
+            vaultId,
+            amount,
+            userAddress
+        );
 
         const tx: Transaction = {
             id: generateId(),
@@ -375,7 +379,7 @@ transactionsRouter.post('/redeem', async (req, res) => {
             vaultId,
             vaultName: allocation.vaultName,
             amount,
-            txHash: result.hash,
+            txHash: result.transactions[0]?.to || '',
             status: 'confirmed',
             createdAt: new Date().toISOString(),
         };
