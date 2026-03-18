@@ -2,10 +2,11 @@
     "extends": "../tsconfig.base.json",
     "compilerOptions": {
         "jsx": "react-jsx",
-        "jsxImportSource": "astro",
         "strict": false,
         "noImplicitAny": false,
-        "strictNullChecks": false
+        "strictNullChecks": false,
+        "allowImportingTsExtensions": true,
+        "moduleResolution": "bundler"
     },
     "include": [
         "src/**/*",

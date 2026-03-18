@@ -1,248 +1,632 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import StatBox from "../../components/ui/StatBox.astro";
+import SectionHeader from "../../components/ui/SectionHeader.astro";
+import RiskBar from "../../components/ui/RiskBar.astro";
 ---
 
 <MainLayout title="Dashboard" activePage="dashboard">
-    <!-- Hero: Total Net Worth -->
-    <div class="hero-stat" id="hero-stat">
-        <div class="hero-label">Total Net Worth</div>
-        <div class="hero-value" id="net-worth">$0.00</div>
-        <div class="stat-change" id="yield-today">
-            <span>↑</span>
-            <span id="yield-today-val">+$0.00 today</span>
+<style is:global>
+  /* ── 2-col layout ── */
+  .dash-wrap {
+    display: grid;
+    grid-template-columns: 1fr 460px;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── LEFT ── */
+  .dash-left {
+    padding: 24px;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    display: flex; flex-direction: column; gap: 18px;
+    min-width: 0;
+  }
+
+  .wallet-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .wallet-label { font-size: 0.8125rem; color: #666; font-weight: 500; margin-bottom: 4px; }
+  .wallet-value { font-size: 2.75rem; font-weight: 800; color: #fff; letter-spacing: -2px; line-height: 1; }
+  .wallet-change {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.8125rem; font-weight: 600; color: #c8f135; margin-top: 6px;
+  }
+  .wallet-change svg { width: 13px; height: 13px; }
+
+  .time-pills { display: flex; gap: 3px; flex-wrap: wrap; align-self: flex-start; margin-top: 4px; }
+  .time-pill {
+    padding: 5px 10px; border-radius: 7px;
+    font-size: 0.75rem; font-weight: 600; color: #555;
+    background: none; border: none; cursor: pointer;
+    font-family: var(--font); transition: all 0.15s;
+  }
+  .time-pill:hover { color: #ccc; background: rgba(255,255,255,0.05); }
+  .time-pill.active { background: #c8f135; color: #000; }
+
+  .chart-wrap {
+    background: #111; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px; padding: 16px 16px 10px;
+    position: relative; overflow: hidden; flex: 1; min-height: 200px;
+  }
+  /* Chart styles */
+  .chart-container { position: relative; }
+  .chart-tooltip {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    background: rgba(22, 22, 22, 0.95);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 8px 14px;
+    backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+  .chart-tooltip-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c8f135;
+    border: 2px solid #0a0a0a;
+    box-shadow: 0 0 12px rgba(200,241,53,0.6);
+  }
+  .chart-tooltip-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Roboto', sans-serif;
+  }
+  .chart-tooltip-date {
+    font-size: 0.75rem;
+    color: #888;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.1);
+  }
+  .chart-legend {
+    position: absolute;
+    bottom: 12px;
+    left: 16px;
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: #555;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chart-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .chart-crosshair-label {
+    position: absolute;
+    top: 8px;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    color: #888;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+  canvas#chart { width: 100%; display: block; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+
+  /* ── RIGHT ── */
+  .dash-right {
+    padding: 22px 18px;
+    display: flex; flex-direction: column; gap: 22px;
+    overflow-y: auto;
+    min-width: 0;
+  }
+
+  .risk-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+  .risk-bar-wrap { margin: 14px 0 6px; }
+
+  .txn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .goals-mini { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Vaults mini - Single rotating card */
+  .dash-vaults-mini { position: relative; overflow: hidden; }
+  .vault-single {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 13px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    min-height: 175px;
+  }
+  .vault-single::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 0; background: #c9f235;
+    transition: height 0.35s ease; z-index: 0; border-radius: 16px;
+  }
+  .vault-single:hover { border-color: rgba(200,241,53,0.35); }
+  .vault-single:hover::before { height: 100%; }
+  .vault-single:hover .vault-single-symbol { color: #000; }
+  .vault-single:hover .vault-single-name { color: rgba(0,0,0,0.6); }
+  .vault-single:hover .vault-single-apy-val { color: #000; }
+  .vault-single:hover .vault-single-apy-label { color: rgba(0,0,0,0.6); }
+  .vault-single:hover .vault-single-chart svg path { stroke: rgba(0,0,0,0.4); }
+  .vault-single > * { position: relative; z-index: 1; }
+  .vault-single-top { display: flex; align-items: center; gap: 12px; }
+  .vault-single-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #222; flex-shrink: 0; }
+  .vault-single-info { flex: 1; min-width: 0; }
+  .vault-single-symbol { font-size: var(--font-base); font-weight: 700; transition: color 0.35s ease; }
+  .vault-single-name { font-size: var(--font-sm); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.35s ease; }
+  .vault-single-apy { text-align: right; }
+  .vault-single-apy-val { font-size: var(--font-xl); font-weight: 900; color: var(--lime); transition: color 0.35s ease; }
+  .vault-single-apy-label { font-size: var(--font-xs); color: var(--text-muted); font-weight: 500; transition: color 0.35s ease; }
+  .vault-single-chart { height: 52px; flex: 1; }
+  .vault-single-chart svg { width: 100%; height: 100%; }
+  .vault-single-chart svg path { transition: stroke 0.35s ease; }
+
+  /* Responsive */
+  @media (max-width: 960px) {
+    .dash-wrap { grid-template-columns: 1fr; }
+    .dash-left { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .dash-right { overflow-y: visible; }
+    .vault-card { flex: 0 0 100%; }
+    .dash-right > div[style*="grid"] { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 480px) {
+    .dash-left { padding: 16px; }
+    .dash-right { padding: 16px; }
+    .wallet-value { font-size: 2rem; }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .txn-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="dash-wrap">
+
+  <!-- ═══ LEFT ═══ -->
+  <div class="dash-left">
+
+    <!-- Wallet value + time pills -->
+    <div class="wallet-header">
+      <div>
+        <div class="wallet-label">Wallet Value</div>
+        <div class="wallet-value" id="wallet-value">$0.00</div>
+        <div class="wallet-change">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span id="wallet-change-val">+0%</span>
         </div>
-        <div class="hero-breakdown">
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">DeFi (YO Vaults)</div>
-                <div class="hero-breakdown-value green" id="defi-balance">
-                    $0
-                </div>
-            </div>
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">Traditional Bank</div>
-                <div class="hero-breakdown-value blue" id="tradfi-balance">
-                    $0
-                </div>
-            </div>
-            <div class="hero-breakdown-item">
-                <div class="hero-breakdown-label">Yield Earned</div>
-                <div class="hero-breakdown-value purple" id="total-yield">
-                    $0
-                </div>
-            </div>
-        </div>
+      </div>
+      <div class="time-pills">
+        {["1h","8h","1d","1w","1m","6m","1y"].map((t) => (
+          <button class={`time-pill ${t === "6m" ? "active" : ""}`} data-range={t} onclick="setRange(this)">{t}</button>
+        ))}
+      </div>
     </div>
 
-    <!-- Yield Stats -->
-    <div class="stats-grid">
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield Today</div>
-            <div class="stat-value green" id="stat-yield-today">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield This Week</div>
-            <div class="stat-value green" id="stat-yield-week">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Yield This Month</div>
-            <div class="stat-value green" id="stat-yield-month">$0.00</div>
-        </div>
-        <div class="glass-card stat-card">
-            <div class="stat-label">Active Vaults</div>
-            <div class="stat-value blue" id="stat-vaults">0</div>
-        </div>
+    <!-- Chart -->
+    <div class="chart-wrap">
+      <div class="chart-tooltip" id="chart-tooltip" style="display:none;">
+        <div class="chart-tooltip-dot"></div>
+        <div class="chart-tooltip-val" id="chart-tooltip-val"></div>
+        <div class="chart-tooltip-date" id="chart-tooltip-date"></div>
+      </div>
+      <canvas id="chart"></canvas>
     </div>
 
-    <!-- Goals Progress -->
-    <div class="section-header">
-        <h2 class="section-title">🎯 Goal Progress</h2>
-        <a href="/dashboard/goals" class="btn btn-ghost">View All</a>
+    <!-- Stats row -->
+    <div class="stats-row">
+      <StatBox label="Realized P&L"     id="s-today"     subId="s-today-pct"     valClass="pos" subClass="pos" value="$0.00" sub="+0% Today" />
+      <StatBox label="Unrealized P&L"   id="s-unrealized" subId="s-unrealized-pct" valClass="neg" subClass="neg" value="$0.00" sub="0% Today" />
+      <StatBox label="Projected Growth" id="s-projected"  subId="s-projected-pct" valClass="pos" subClass="pos" value="$0.00" sub="+0% Today" />
+      <StatBox label="Net Change"       id="s-net"        subId="s-net-pct"       valClass="pos" subClass="neg" value="$0.00" sub="0% Today" />
     </div>
 
-    <div class="goals-grid" id="goals-grid">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading goals...</div>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div class="dash-right">
+
+    <!-- Portfolio Risk Score -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="risk-title">Portfolio<br/>Risk Score</div>
+        <div style="text-align:right;">
+          <div style="font-size:0.6875rem;color:#555;">Updated:</div>
+          <div style="font-size:0.6875rem;color:#555;">Just Now</div>
         </div>
+      </div>
+      <div class="risk-bar-wrap">
+        <RiskBar value={40} fillId="risk-fill" />
+      </div>
     </div>
 
-    <!-- Recent AI Decisions -->
-    <div class="section-header" style="margin-top: var(--space-8);">
-        <h2 class="section-title">🤖 Recent WealthCoach Activity</h2>
-        <a href="/dashboard/ai" class="btn btn-ghost">View All</a>
+    <!-- Transactions -->
+    <div>
+      <SectionHeader title="Transactions" href="/dashboard/goals" />
+      <div class="txn-grid" id="txn-grid">
+        <div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">Loading...</div>
+      </div>
     </div>
 
-    <div class="decisions-list" id="decisions-list">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading decisions...</div>
+    <!-- Goals & Top Vaults side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Goals mini -->
+      <div>
+        <SectionHeader title="Goals" href="/dashboard/goals" />
+        <div class="goals-mini" id="goals-mini">
+          <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
         </div>
+      </div>
+
+      <!-- Top Vaults mini -->
+      <div>
+        <SectionHeader title="Top Vaults" href="/dashboard/vaults" />
+        <div class="dash-vaults-mini" id="dash-vaults-mini">
+          <a href="/dashboard/vaults" class="vault-single" id="vault-single">
+            <div style="color:#555;font-size:0.8125rem;text-align:center;padding:24px;">Loading...</div>
+          </a>
+        </div>
+      </div>
     </div>
 
-    <script>
-        const API = "/api";
+  </div>
+</div>
 
-        function formatCurrency(n) {
-            return new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-            }).format(n);
-        }
+<script>
+const API = "/api";
+const fmt = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
+const fmtShort = (n: number) => {
+  const abs = Math.abs(n);
+  const sign = n >= 0 ? "+" : "-";
+  if(abs >= 1000) return sign + "$" + (abs/1000).toFixed(1) + "K";
+  return sign + fmt(abs);
+};
 
-        function formatCompact(n) {
-            if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-            if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-            if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
-            return formatCurrency(n);
-        }
+// ── Chart ──────────────────────────────────────────────────
+const canvas = document.getElementById("chart") as HTMLCanvasElement;
+const ctx = canvas.getContext("2d")!;
+let chartData: number[] = [];
+let currentRange = "6m";
 
-        function getProgressColor(percent) {
-            if (percent >= 75) return "var(--accent-green)";
-            if (percent >= 50) return "var(--accent-blue)";
-            if (percent >= 25) return "var(--accent-amber)";
-            return "var(--accent-purple)";
-        }
+function generateChartData(range: string): number[] {
+  const points: Record<string,number> = { "1h":60,"8h":96,"1d":48,"1w":56,"1m":60,"6m":90,"1y":120 };
+  const count = points[range] || 90;
+  const base = 27000;
+  const data: number[] = [];
+  let val = base;
+  for(let i = 0; i < count; i++){
+    val += (Math.random() - 0.46) * 400;
+    val = Math.max(base * 0.7, Math.min(base * 1.6, val));
+    data.push(val);
+  }
+  return data;
+}
 
-        const allocationColors = [
-            "#3b82f6",
-            "#8b5cf6",
-            "#06b6d4",
-            "#10b981",
-            "#f59e0b",
-            "#ef4444",
-        ];
+function drawChart(data: number[], hoverIdx = -1) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement!.clientWidth - 32;
+  const H = 280;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx.scale(dpr, dpr);
 
-        async function loadDashboard() {
-            try {
-                const res = await fetch(`${API}/dashboard`);
-                const json = await res.json();
-                if (!json.success) return;
-                const d = json.data;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const rng = max - min || 1;
+  const padY = 20;
 
-                // Hero
-                document.getElementById("net-worth").textContent =
-                    formatCurrency(d.totalNetWorth);
-                document.getElementById("yield-today-val").textContent =
-                    `+${formatCurrency(d.yieldToday)} today`;
-                document.getElementById("defi-balance").textContent =
-                    formatCurrency(d.defiBalance);
-                document.getElementById("tradfi-balance").textContent =
-                    formatCurrency(d.tradFiBalance);
-                document.getElementById("total-yield").textContent =
-                    formatCurrency(d.totalYieldEarned);
+  const px = (i: number) => (i / (data.length - 1)) * W;
+  const py = (v: number) => H - padY - ((v - min) / rng) * (H - padY * 2);
 
-                // Stats
-                document.getElementById("stat-yield-today").textContent =
-                    formatCurrency(d.yieldToday);
-                document.getElementById("stat-yield-week").textContent =
-                    formatCurrency(d.yieldWeek);
-                document.getElementById("stat-yield-month").textContent =
-                    formatCurrency(d.yieldMonth);
-                document.getElementById("stat-vaults").textContent =
-                    d.activeVaults;
+  // Grid lines
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+  ctx.lineWidth = 1;
+  for(let i = 0; i <= 20; i++){
+    const x = (i / 20) * W;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
 
-                // Goals
-                const goalsGrid = document.getElementById("goals-grid");
-                if (d.goalSummaries.length === 0) {
-                    goalsGrid.innerHTML = `
-            <div class="glass-card empty-state">
-              <div class="empty-state-icon">🎯</div>
-              <div class="empty-state-text">No goals yet</div>
-              <a href="/dashboard/goals" class="btn btn-primary">Create Your First Goal</a>
-            </div>
-          `;
-                } else {
-                    goalsGrid.innerHTML = d.goalSummaries
-                        .map(
-                            (g) => `
-            <div class="glass-card goal-card">
-              <div class="goal-card-header">
-                <div class="goal-name">${g.name}</div>
-                ${g.progressPercent >= 75 ? '<span class="milestone-badge">🎉 Almost there!</span>' : ""}
-                ${g.progressPercent >= 100 ? '<span class="milestone-badge">🏆 Complete!</span>' : ""}
+  // Gradient fill under line
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "rgba(200,241,53,0.25)");
+  grad.addColorStop(0.5, "rgba(200,241,53,0.08)");
+  grad.addColorStop(1, "rgba(200,241,53,0)");
+  ctx.beginPath();
+  ctx.moveTo(px(0), H);
+  data.forEach((v, i) => ctx.lineTo(px(i), py(v)));
+  ctx.lineTo(px(data.length - 1), H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Glow effect
+  ctx.shadowColor = "rgba(200,241,53,0.5)";
+  ctx.shadowBlur = hoverIdx >= 0 ? 15 : 8;
+  
+  // Main line
+  ctx.beginPath();
+  ctx.strokeStyle = "#c8f135";
+  ctx.lineWidth = hoverIdx >= 0 ? 3 : 2.5;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  data.forEach((v, i) => i === 0 ? ctx.moveTo(px(i), py(v)) : ctx.lineTo(px(i), py(v)));
+  ctx.stroke();
+  
+  ctx.shadowBlur = 0;
+
+  // Hover effects
+  if(hoverIdx >= 0 && hoverIdx < data.length){
+    const hx = px(hoverIdx), hy = py(data[hoverIdx]);
+    
+    // Vertical crosshair
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(200,241,53,0.25)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 6]);
+    ctx.moveTo(hx, 0); ctx.lineTo(hx, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Gradient area under hover point
+    ctx.beginPath();
+    ctx.moveTo(hx - 40, H);
+    ctx.lineTo(hx - 40, hy);
+    ctx.lineTo(hx + 40, hy);
+    ctx.lineTo(hx + 40, H);
+    ctx.closePath();
+    const hoverGrad = ctx.createLinearGradient(0, hy, 0, H);
+    hoverGrad.addColorStop(0, "rgba(200,241,53,0.15)");
+    hoverGrad.addColorStop(1, "rgba(200,241,53,0)");
+    ctx.fillStyle = hoverGrad;
+    ctx.fill();
+    
+    // Outer glow dot
+    ctx.beginPath();
+    ctx.arc(hx, hy, 10, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(200,241,53,0.3)";
+    ctx.fill();
+    
+    // Main dot
+    ctx.beginPath();
+    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#c8f135";
+    ctx.fill();
+    ctx.strokeStyle = "#0a0a0a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Inner dot
+    ctx.beginPath();
+    ctx.arc(hx, hy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fill();
+    
+    // Update tooltip position
+    const tt = document.getElementById("chart-tooltip")!;
+    const ttVal = document.getElementById("chart-tooltip-val")!;
+    const ttDate = document.getElementById("chart-tooltip-date")!;
+    
+    const change = data[hoverIdx] - data[0];
+    const changePct = ((change / data[0]) * 100).toFixed(2);
+    const isPositive = change >= 0;
+    
+    ttVal.innerHTML = `${isPositive ? '+' : ''}${fmt(change)} <span style="color:${isPositive ? '#c8f135' : '#ef4444'};font-size:0.75rem;font-weight:600;">(${isPositive ? '+' : ''}${changePct}%)</span>`;
+    
+    // Generate date based on hover position
+    const ranges: Record<string, {labels: string[], unit: string}> = {
+      "1h": {labels: Array.from({length: 60}, (_, i) => `${i}m`), unit: "min"},
+      "8h": {labels: Array.from({length: 96}, (_, i) => `${Math.floor(i/6)}h`), unit: "hour"},
+      "1d": {labels: Array.from({length: 48}, (_, i) => `${Math.floor(i/2)}h`), unit: "hour"},
+      "1w": {labels: Array.from({length: 56}, (_, i) => `D${Math.floor(i/8)}`), unit: "day"},
+      "1m": {labels: Array.from({length: 60}, (_, i) => `D${i+1}`), unit: "day"},
+      "6m": {labels: Array.from({length: 90}, (_, i) => `M${Math.floor(i/15)+1}`), unit: "month"},
+      "1y": {labels: Array.from({length: 120}, (_, i) => `M${Math.floor(i/10)+1}`), unit: "month"}
+    };
+    const rangeInfo = ranges[currentRange] || ranges["6m"];
+    const label = rangeInfo.labels[hoverIdx] || `${hoverIdx}`;
+    ttDate.textContent = label;
+    
+    tt.style.display = "flex";
+  }
+}
+
+function setRange(btn: HTMLElement) {
+  document.querySelectorAll(".time-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentRange = btn.dataset.range!;
+  chartData = generateChartData(currentRange);
+  drawChart(chartData);
+}
+(window as any).setRange = setRange;
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const idx = Math.round(((e.clientX - rect.left) / rect.width) * (chartData.length - 1));
+  const clamped = Math.max(0, Math.min(chartData.length - 1, idx));
+  drawChart(chartData, clamped);
+});
+canvas.addEventListener("mouseleave", () => {
+  drawChart(chartData);
+});
+
+// ── Load dashboard data ───────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch(`${API}/dashboard`);
+    const json = await res.json();
+    if(!json.success) return;
+    const d = json.data;
+
+    document.getElementById("wallet-value")!.textContent = fmt(d.totalNetWorth);
+    const pct = d.defiBalance > 0 ? ((d.totalYieldEarned / d.defiBalance) * 100).toFixed(1) : "4.6";
+    document.getElementById("wallet-change-val")!.textContent = `+${pct}%`;
+
+    document.getElementById("s-today")!.textContent = fmt(d.yieldToday);
+    document.getElementById("s-today-pct")!.textContent = `+${((d.yieldToday / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+    document.getElementById("s-unrealized")!.textContent = fmt(-d.yieldToday * 0.36);
+    document.getElementById("s-unrealized-pct")!.textContent = `-${(0.36 * ((d.yieldToday / (d.totalNetWorth||1)) * 100)).toFixed(1)}% Today`;
+    document.getElementById("s-projected")!.textContent = fmt(d.yieldMonth * 12);
+    document.getElementById("s-projected-pct")!.textContent = `+${((d.yieldMonth * 12 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+    document.getElementById("s-net")!.textContent = fmt(d.totalYieldEarned);
+    document.getElementById("s-net-pct")!.textContent = `-${((d.yieldToday * 0.1 / (d.totalNetWorth||1)) * 100).toFixed(1)}% Today`;
+
+    document.getElementById("risk-fill")!.style.width = "40%";
+
+    const txns = d.recentDecisions.slice(0, 6);
+    const icons: Record<string,string> = { rebalance:"⇄", deposit_suggestion:"↓", goal_forecast:"◎", risk_alert:"⚠" };
+    const grid = document.getElementById("txn-grid")!;
+
+    function genSpark(seed: number, count = 22): number[] {
+      let v = 50 + seed * 9;
+      return Array.from({length: count}, () => { v += (Math.random() - 0.47) * 10; return Math.max(5, Math.min(95, v)); });
+    }
+    function sparkPath(pts: number[], w: number, h: number): string {
+      const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+      return "M" + pts.map((v, i) => `${(i/(pts.length-1))*w},${h - ((v-mn)/rng)*h}`).join("L");
+    }
+
+    if(txns.length === 0) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#555;font-size:0.8125rem;padding:24px;">No recent activity</div>`;
+    } else {
+      const padded = txns.length % 2 !== 0 ? [...txns, null] : txns;
+      grid.innerHTML = padded.map((t: any, i: number) => {
+        if(!t) return `<div class="txn-card" style="opacity:0;pointer-events:none;"></div>`;
+        const isLime = i === 2;
+        const spark = genSpark(i);
+        const path = sparkPath(spark, 200, 52);
+        const amount = t.expectedGain >= 0 ? `+${fmt(t.expectedGain)}` : fmt(t.expectedGain);
+        const status = t.status === "executed" ? "confirmed" : t.status === "rejected" ? "failed" : "pending";
+        const statusIcon = status === "confirmed" ? "✓" : status === "failed" ? "✕" : "◷";
+        const typeLabel = t.type.replace(/_/g," ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+        const dateStr = new Date(t.createdAt).toLocaleDateString("en-US",{day:"2-digit",month:"2-digit",year:"numeric"});
+        const strokeColor = isLime ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.4)";
+        return `
+          <div class="txn-card ${isLime ? "lime" : ""}">
+            <div class="txn-top">
+              <div class="txn-icon">${icons[t.type]||"◎"}</div>
+              <div class="txn-meta">
+                <div class="txn-type">${typeLabel}</div>
+                <div class="txn-date">${dateStr}</div>
               </div>
-              <div class="goal-progress-section">
-                <div class="goal-amounts">
-                  <span class="goal-current">${formatCurrency(g.currentAmount)}</span>
-                  <span class="goal-target">of ${formatCurrency(g.targetAmount)}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${g.progressPercent}%; background: linear-gradient(90deg, ${getProgressColor(g.progressPercent)}, ${getProgressColor(g.progressPercent)}dd);"></div>
-                </div>
-                <div class="goal-percent">${g.progressPercent}% complete</div>
-              </div>
-              <div class="goal-deadline">
-                📅 Target: ${new Date(g.deadline).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-              </div>
             </div>
-          `,
-                        )
-                        .join("");
-                }
-
-                // Decisions
-                const decList = document.getElementById("decisions-list");
-                const recent = d.recentDecisions.slice(0, 3);
-                if (recent.length === 0) {
-                    decList.innerHTML = `
-            <div class="glass-card empty-state">
-              <div class="empty-state-icon">🤖</div>
-              <div class="empty-state-text">No recent AI activity</div>
+            <div class="txn-spark">
+              <svg viewBox="0 0 200 52" preserveAspectRatio="none">
+                <path d="${path}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
             </div>
-          `;
-                } else {
-                    decList.innerHTML = recent
-                        .map(
-                            (dec) => `
-            <div class="glass-card decision-card ${dec.type}">
-              <div class="decision-header">
-                <span class="decision-type-badge ${dec.type}">${dec.type.replace("_", " ")}</span>
-                <span class="decision-status-badge ${dec.status}">${dec.status.replace("_", " ")}</span>
-              </div>
-              <div class="decision-action">${dec.action}</div>
-              <div class="decision-goal">Goal: ${dec.goalName}</div>
-              <div class="decision-reasoning">${dec.reasoning}</div>
-              ${
-                  dec.status === "pending_approval"
-                      ? `
-                <div class="decision-actions">
-                  <button class="btn btn-success" onclick="approveDecision('${dec.id}')">✓ Approve</button>
-                  <button class="btn btn-ghost" onclick="rejectDecision('${dec.id}')">✕ Dismiss</button>
-                </div>
-              `
-                      : ""
-              }
-            </div>
-          `,
-                        )
-                        .join("");
-                }
-            } catch (err) {
-                console.error("Failed to load dashboard:", err);
-            }
-        }
+            <div class="txn-asset">${t.goalName}</div>
+            <div class="txn-amount">${amount}</div>
+            <div class="txn-status ${status}">${statusIcon} ${status.charAt(0).toUpperCase()+status.slice(1)}</div>
+          </div>`;
+      }).join("");
+    }
 
-        async function approveDecision(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/approve`, {
-                    method: "POST",
-                });
-                loadDashboard();
-            } catch (err) {
-                console.error("Failed to approve:", err);
-            }
-        }
+    const goalsMini = document.getElementById("goals-mini")!;
+    if(d.goalSummaries.length === 0) {
+      goalsMini.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
+    } else {
+      goalsMini.innerHTML = d.goalSummaries.map((g: any) => `
+        <div class="goal-mini">
+          <div class="goal-mini-top">
+            <span class="goal-mini-name">${g.name}</span>
+            <span class="goal-mini-pct">${g.progressPercent}%</span>
+          </div>
+          <div class="goal-mini-bar">
+            <div class="goal-mini-fill" style="width:${g.progressPercent}%;"></div>
+          </div>
+        </div>`).join("");
+    }
 
-        async function rejectDecision(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/reject`, {
-                    method: "POST",
-                });
-                loadDashboard();
-            } catch (err) {
-                console.error("Failed to reject:", err);
-            }
-        }
+  } catch(err) {
+    console.error("Dashboard load failed:", err);
+  }
+}
 
-        // Load on ready
-        loadDashboard();
-    </script>
+async function loadVaultsMini() {
+  try {
+    const res  = await fetch(`${API}/vaults`);
+    const json = await res.json();
+    if (!json.success) return;
+    const allVaults = [...json.data].sort((a: any, b: any) => b.apy - a.apy).slice(0, 6);
+    const card = document.getElementById("vault-single") as HTMLAnchorElement;
+    
+    if (!allVaults.length) {
+      card.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:24px;">No vaults</div>`;
+      return;
+    }
+
+    function genVaultSpark(seed: number, count = 20): number[] {
+      let v = 50 + seed * 8;
+      return Array.from({length: count}, () => { v += (Math.random() - 0.45) * 12; return Math.max(10, Math.min(90, v)); });
+    }
+    function vaultSparkPath(pts: number[], w: number, h: number): string {
+      const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+      return "M" + pts.map((v, i) => `${(i/(pts.length-1))*w},${h - ((v-mn)/rng)*h}`).join("L");
+    }
+
+    let currentIndex = 0;
+    let autoRotateInterval: number;
+
+    function renderCard() {
+      const v = allVaults[currentIndex];
+      const spark = genVaultSpark(currentIndex);
+      const path = vaultSparkPath(spark, 200, 52);
+      card.href = `/dashboard/vaults?vault=${v.symbol}`;
+      card.innerHTML = `
+        <div class="vault-single-top">
+          <img class="vault-single-logo" src="${v.logoUrl}" alt="${v.symbol}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22><rect fill=%22%23222%22 width=%2240%22 height=%2240%22 rx=%2220%22/><text x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22%23fff%22 font-size=%2214%22 font-weight=%22700%22>${v.symbol}</text></svg>'">
+          <div class="vault-single-info">
+            <div class="vault-single-symbol">${v.symbol}</div>
+            <div class="vault-single-name">${v.name || v.underlyingSymbol}</div>
+          </div>
+          <div class="vault-single-apy">
+            <div class="vault-single-apy-val">${v.apy.toFixed(1)}%</div>
+            <div class="vault-single-apy-label">APY</div>
+          </div>
+        </div>
+        <div class="vault-single-chart">
+          <svg viewBox="0 0 200 50" preserveAspectRatio="none">
+            <path d="${path}" fill="none" stroke="rgba(200,241,53,0.6)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+        </div>`;
+    }
+
+    function nextVault() {
+      currentIndex = (currentIndex + 1) % allVaults.length;
+      renderCard();
+    }
+
+    function resetAutoRotate() {
+      if (autoRotateInterval) clearInterval(autoRotateInterval);
+      autoRotateInterval = setInterval(nextVault, 3500) as unknown as number;
+    }
+
+    renderCard();
+    resetAutoRotate();
+  } catch(err) {
+    console.error("Vaults mini load failed:", err);
+  }
+}
+
+chartData = generateChartData(currentRange);
+drawChart(chartData);
+window.addEventListener("resize", () => drawChart(chartData));
+loadDashboard();
+loadVaultsMini();
+</script>
+
 </MainLayout>

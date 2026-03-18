@@ -1,0 +1,12 @@
+---
+interface Props {
+  title: string;
+  href?: string;
+  linkLabel?: string;
+}
+const { title, href, linkLabel = 'View All' } = Astro.props;
+---
+<div class="section-hdr">
+  <span class="section-hdr-title">{title}</span>
+  {href && <a href={href} class="view-all">{linkLabel}</a>}
+</div>

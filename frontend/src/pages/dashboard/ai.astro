@@ -2,289 +2,183 @@
 import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
-<MainLayout title="WealthCoach" activePage="ai">
-    <div class="page-header">
-        <h1 class="page-title">🤖 WealthCoach AI</h1>
-        <p class="page-subtitle">
-            Your 24/7 yield optimizer. Every decision is explained and requires
-            your approval before execution.
-        </p>
+<MainLayout title="AI Agent" activePage="ai">
+<div style="padding:28px 24px;">
+
+  <div class="page-header">
+    <h1 class="page-title">AI Agent</h1>
+    <p class="page-subtitle">Every decision is explained and requires your approval before execution.</p>
+  </div>
+
+  <!-- Actions bar -->
+  <div style="display:flex; gap:var(--s3); margin-bottom:var(--s6); flex-wrap:wrap; align-items:center;">
+    <button class="btn btn-primary btn-lg" id="scan-btn" onclick="runScan()">
+      Run Scan
+    </button>
+    <div style="display:flex; gap:var(--s2); margin-left:auto;">
+      <button class="btn btn-ghost filter-btn active" data-filter="all"             onclick="filterDecisions('all',this)">All</button>
+      <button class="btn btn-ghost filter-btn"        data-filter="pending_approval" onclick="filterDecisions('pending_approval',this)">Pending</button>
+      <button class="btn btn-ghost filter-btn"        data-filter="executed"         onclick="filterDecisions('executed',this)">Executed</button>
     </div>
+  </div>
 
-    <!-- Actions -->
-    <div
-        style="display: flex; gap: var(--space-3); margin-bottom: var(--space-8);"
-    >
-        <button
-            class="btn btn-primary btn-lg"
-            id="scan-btn"
-            onclick="runScan()"
-        >
-            🔍 Run WealthCoach Scan
-        </button>
-        <button
-            class="btn btn-ghost btn-lg"
-            data-filter="all"
-            onclick="filterDecisions('all', this)"
-        >
-            All
-        </button>
-        <button
-            class="btn btn-ghost btn-lg"
-            data-filter="pending_approval"
-            onclick="filterDecisions('pending_approval', this)"
-        >
-            ⏳ Pending
-        </button>
-        <button
-            class="btn btn-ghost btn-lg"
-            data-filter="executed"
-            onclick="filterDecisions('executed', this)"
-        >
-            ✓ Executed
-        </button>
+  <!-- Count -->
+  <div class="section-header">
+    <h2 class="section-title">Decision Log</h2>
+    <span style="font-size:var(--font-xs);color:var(--text-muted);" id="decision-count">0 decisions</span>
+  </div>
+
+  <div class="decisions-list" id="decisions-list">
+    <div class="card empty-state loading">
+      <div class="empty-state-text">Loading decisions...</div>
     </div>
+  </div>
 
-    <!-- Decision Log -->
-    <div class="section-header">
-        <h2 class="section-title">Decision Transparency Log</h2>
-        <span
-            style="font-size: var(--font-xs); color: var(--text-muted);"
-            id="decision-count">0 decisions</span
-        >
-    </div>
+</div>
+</MainLayout>
 
-    <div class="decisions-list" id="decisions-list">
-        <div class="glass-card empty-state loading">
-            <div class="empty-state-text">Loading AI decisions...</div>
-        </div>
-    </div>
+<script>
+  const API = "/api";
+  let allDecisions: any[] = [];
+  let currentFilter = "all";
 
-    <!-- Rebalance Confirmation Modal -->
-    <div class="modal-overlay" id="rebalance-modal">
-        <div class="modal">
-            <h3 class="modal-title">⚖️ Confirm Rebalance</h3>
-            <div id="rebalance-details"></div>
-            <div
-                style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);"
-            >
-                <button class="btn btn-ghost" onclick="closeRebalanceModal()"
-                    >Dismiss</button
-                >
-                <button class="btn btn-success" id="confirm-rebalance-btn"
-                    >✓ Approve</button
-                >
-            </div>
-        </div>
-    </div>
+  const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-    <script>
-        const API = "/api";
-        /** @type {{ id: string; goalId: string; goalName: string; type: string; action: string; reasoning: string; expectedGain: number; gasCost: number; status: string; fromVault?: string; toVault?: string; amount?: number; createdAt: string }[]} */
-        let allDecisions = [];
-        let currentFilter = "all";
+  function timeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
 
-        /** @param {number} n */
-        function formatCurrency(n) {
-            return new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-            }).format(n);
-        }
+  function renderDecisions(decisions) {
+    const list = document.getElementById("decisions-list");
+    const countEl = document.getElementById("decision-count");
+    countEl.textContent = `${decisions.length} decision${decisions.length !== 1 ? "s" : ""}`;
 
-        /** @param {string} dateStr */
-        function timeAgo(dateStr) {
-            const diff = Date.now() - new Date(dateStr).getTime();
-            const mins = Math.floor(diff / 60000);
-            if (mins < 60) return `${mins}m ago`;
-            const hours = Math.floor(mins / 60);
-            if (hours < 24) return `${hours}h ago`;
-            return `${Math.floor(hours / 24)}d ago`;
-        }
+    if (decisions.length === 0) {
+      list.innerHTML = `
+        <div class="card empty-state">
+          <div class="empty-state-icon">◈</div>
+          <div class="empty-state-text">No decisions yet — run a scan</div>
+        </div>`;
+      return;
+    }
 
-        /** @param {{ id: string; goalId: string; goalName: string; type: string; action: string; reasoning: string; expectedGain: number; gasCost: number; status: string; fromVault?: string; toVault?: string; amount?: number; createdAt: string }[]} decisions */
-        function renderDecisions(decisions) {
-            const list = document.getElementById("decisions-list");
-            const countEl = document.getElementById("decision-count");
-            if (!countEl) return;
-            countEl.textContent =
-                `${decisions.length} decision${decisions.length !== 1 ? "s" : ""}`;
+    list.innerHTML = decisions.map(d => {
+      const isPending  = d.status === "pending_approval";
+      const isExecuted = d.status === "executed";
+      const isRejected = d.status === "rejected";
 
-            if (decisions.length === 0 || !list) {
-                if (list) {
-                    list.innerHTML = `
-          <div class="glass-card empty-state">
-            <div class="empty-state-icon">🤖</div>
-            <h3>No decisions yet</h3>
-            <p>Run a scan to get AI recommendations</p>
-          </div>
-        `;
-                }
-                return;
-            }
-
-            list.innerHTML = decisions.map(d => {
-                const isPending = d.status === "pending_approval";
-                const isExecuted = d.status === "executed";
-                const isRejected = d.status === "rejected";
-
-                return `
-        <div class="glass-card decision-card" data-status="${d.status}">
+      return `
+        <div class="card decision-card ${d.type}">
           <div class="decision-header">
             <div class="decision-type">
-              <span class="badge badge-${d.type === 'rebalance' ? 'info' : d.type === 'risk_alert' ? 'warning' : 'success'}">${d.type}</span>
+              <span class="badge badge-${d.type==='rebalance'?'info':d.type==='risk_alert'?'danger':'success'}">${d.type.replace(/_/g," ")}</span>
               <span class="decision-goal">${d.goalName}</span>
             </div>
             <span class="decision-time">${timeAgo(d.createdAt)}</span>
           </div>
-          
+
           <div class="decision-action">${d.action}</div>
           <div class="decision-reasoning">${d.reasoning}</div>
-          
+
           <div class="decision-metrics">
             <div class="metric">
-              <span class="metric-label">Expected Gain</span>
-              <span class="metric-value positive">${formatCurrency(d.expectedGain)}</span>
+              <div class="metric-label">Expected Gain</div>
+              <div class="metric-value positive">${fmt(d.expectedGain)}</div>
             </div>
             <div class="metric">
-              <span class="metric-label">Gas Cost</span>
-              <span class="metric-value negative">${formatCurrency(d.gasCost)}</span>
+              <div class="metric-label">Gas Cost</div>
+              <div class="metric-value negative">${fmt(d.gasCost)}</div>
             </div>
             <div class="metric">
-              <span class="metric-label">Net Benefit</span>
-              <span class="metric-value ${d.expectedGain - d.gasCost > 0 ? 'positive' : 'negative'}">${formatCurrency(d.expectedGain - d.gasCost)}</span>
+              <div class="metric-label">Net Benefit</div>
+              <div class="metric-value ${d.expectedGain - d.gasCost > 0 ? 'positive' : 'negative'}">${fmt(d.expectedGain - d.gasCost)}</div>
             </div>
           </div>
-          
+
           ${isPending ? `
-          <div class="decision-actions">
-            <button class="btn btn-primary" onclick="approveDecision('${d.id}')">✓ Approve & Execute</button>
-            <button class="btn btn-ghost" onclick="rejectDecision('${d.id}')">✗ Dismiss</button>
-          </div>
-          ` : ''}
-          
-          ${isExecuted ? `
-          <div class="decision-status executed">
-            <span class="status-icon">✓</span> Executed
-          </div>
-          ` : ''}
-          
-          ${isRejected ? `
-          <div class="decision-status rejected">
-            <span class="status-icon">✗</span> Dismissed
-          </div>
-          ` : ''}
-        </div>
-      `;
-            }).join("");
-        }
+            <div class="decision-actions">
+              <button class="btn btn-primary" onclick="approveDecision('${d.id}')">Approve & Execute</button>
+              <button class="btn btn-ghost"   onclick="rejectDecision('${d.id}')">Dismiss</button>
+            </div>` : ""}
 
-        async function loadDecisions() {
-            try {
-                const res = await fetch(`${API}/ai/decisions`);
-                const json = await res.json();
-                if (json.success) {
-                    allDecisions = json.data;
-                    filterDecisions(currentFilter, null);
-                }
-            } catch (err) {
-                console.error("Failed to load decisions:", err);
-            }
-        }
+          ${isExecuted ? `<div class="decision-status executed">✓ Executed</div>` : ""}
+          ${isRejected ? `<div class="decision-status rejected">✕ Dismissed</div>` : ""}
+        </div>`;
+    }).join("");
+  }
 
-        /** @param {string} filter */
-        /** @param {HTMLButtonElement | null} btn */
-        function filterDecisions(filter, btn) {
-            currentFilter = filter;
-            
-            if (btn) {
-                document.querySelectorAll('[data-filter]').forEach(b => {
-                    b.classList.remove('btn-primary');
-                    b.classList.add('btn-ghost');
-                });
-                btn.classList.remove('btn-ghost');
-                btn.classList.add('btn-primary');
-            }
+  async function loadDecisions() {
+    try {
+      const res = await fetch(`${API}/ai/decisions`);
+      const json = await res.json();
+      if (json.success) {
+        allDecisions = json.data;
+        applyFilter();
+      }
+    } catch (err) {
+      console.error("Failed to load decisions:", err);
+    }
+  }
 
-            if (filter === "all") {
-                renderDecisions(allDecisions);
-            } else {
-                const filtered = allDecisions.filter(d => d.status === filter);
-                renderDecisions(filtered);
-            }
-        }
+  function applyFilter() {
+    const filtered = currentFilter === "all"
+      ? allDecisions
+      : allDecisions.filter(d => d.status === currentFilter);
+    renderDecisions(filtered);
+  }
 
-        // Expose functions to window for onclick handlers
-        // @ts-ignore
-        window.runScan = async function() {
-            const btn = document.getElementById("scan-btn") as HTMLButtonElement | null;
-            if (!btn) return;
-            btn.textContent = "🔍 Scanning...";
-            btn.disabled = true;
+  function filterDecisions(filter: string, btn: HTMLElement) {
+    currentFilter = filter;
+    document.querySelectorAll(".filter-btn").forEach(b => {
+      b.classList.remove("btn-primary", "active"); b.classList.add("btn-ghost");
+    });
+    btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary", "active");
+    applyFilter();
+  }
 
-            try {
-                const res = await fetch(`${API}/ai/rebalance`, {
-                    method: "POST",
-                });
-                const json = await res.json();
-                if (json.success && json.data.length > 0) {
-                    showToast(
-                        `Found ${json.data.length} new recommendation${json.data.length > 1 ? "s" : ""}!`,
-                    );
-                } else {
-                    showToast("All looks good! No new recommendations.");
-                }
-                loadDecisions();
-            } catch (err) {
-                console.error("Scan failed:", err);
-            } finally {
-                btn.textContent = "🔍 Run WealthCoach Scan";
-                btn.disabled = false;
-            }
-        };
+  async function runScan() {
+    const btn = document.getElementById("scan-btn") as HTMLButtonElement;
+    btn.textContent = "Scanning...";
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API}/ai/rebalance`, { method: "POST" });
+      const json = await res.json();
+      showToast(json.success && json.data.length > 0
+        ? `Found ${json.data.length} new recommendation${json.data.length > 1 ? "s" : ""}`
+        : "All looks good — no new recommendations");
+      loadDecisions();
+    } catch (err) {
+      console.error("Scan failed:", err);
+    } finally {
+      btn.textContent = "Run Scan";
+      btn.disabled = false;
+    }
+  }
 
-        /** @param {string} id */
-        // @ts-ignore
-        window.approveDecision = async function(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/approve`, {
-                    method: "POST",
-                });
-                showToast("Decision approved! Executing...");
-                loadDecisions();
-            } catch (err) {
-                console.error("Failed to approve decision:", err);
-            }
-        };
+  async function approveDecision(id) {
+    await fetch(`${API}/ai/decisions/${id}/approve`, { method: "POST" });
+    showToast("Decision approved");
+    loadDecisions();
+  }
 
-        /** @param {string} id */
-        // @ts-ignore
-        window.rejectDecision = async function(id) {
-            try {
-                await fetch(`${API}/ai/decisions/${id}/reject`, {
-                    method: "POST",
-                });
-                showToast("Decision dismissed");
-                loadDecisions();
-            } catch (err) {
-                console.error("Failed to reject decision:", err);
-            }
-        };
+  async function rejectDecision(id) {
+    await fetch(`${API}/ai/decisions/${id}/reject`, { method: "POST" });
+    showToast("Decision dismissed");
+    loadDecisions();
+  }
 
-        // @ts-ignore
-        window.filterDecisions = filterDecisions;
+  function showToast(msg: string) {
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
 
-        /** @param {string} msg */
-        // @ts-ignore
-        window.showToast = function(msg) {
-            const toast = document.createElement("div");
-            toast.style.cssText = "position:fixed;top:20px;right:20px;z-index:9999;background:var(--bg-card);border:1px solid var(--border-glass-hover);color:var(--text-primary);padding:14px 20px;border-radius:var(--radius-md);font-weight:500;font-size:0.9rem;box-shadow:var(--shadow-lg);backdrop-filter:blur(20px);animation:celebrate 0.3s ease-out;";
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        };
-
-        // Initial load
-        loadDecisions();
-    </script>
-</MainLayout>
+  loadDecisions();
+</script>

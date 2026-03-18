@@ -1,264 +1,281 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import SumCard from "../../components/ui/SumCard.astro";
 ---
 
-<MainLayout title="Settings" activePage="settings">
+<MainLayout title="Portfolio" activePage="settings">
+<style>
+  .port-wrap { padding: 28px; width: 100%; box-sizing: border-box; }
 
-<MainLayout title="Settings" activePage="settings">
-    <div class="page-header">
-        <h1 class="page-title">⚙️ Settings</h1>
-        <p class="page-subtitle">
-            Configure your risk profile, auto-deposit rules, and emergency
-            controls.
-        </p>
+  .port-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .port-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
+  .port-subtitle { font-size: 0.8125rem; color: #555; margin-top: 4px; }
+  .port-updated { font-size: 0.75rem; color: #555; }
+
+  .port-body { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+
+  .alloc-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; }
+  .alloc-inner { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .donut-wrap { position: relative; flex-shrink: 0; width: 140px; height: 140px; }
+  .donut-wrap svg { width: 140px; height: 140px; }
+  .donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .donut-center-val { font-size: 1.125rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .donut-center-label { font-size: 0.625rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .alloc-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 160px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-name { font-size: 0.8125rem; color: #aaa; flex: 1; }
+  .legend-pct { font-size: 0.8125rem; font-weight: 700; color: #fff; }
+  .legend-val { font-size: 0.75rem; color: #555; min-width: 60px; text-align: right; }
+
+  .goals-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .goal-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .goal-row-name { font-size: 0.8125rem; font-weight: 600; }
+  .goal-row-pct { font-size: 0.8125rem; font-weight: 700; color: #c8f135; }
+  .goal-row-bar { height: 5px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
+  .goal-row-fill { height: 100%; border-radius: 999px; background: #c8f135; }
+  .goal-row-meta { display: flex; justify-content: space-between; font-size: 0.6875rem; color: #555; }
+
+  .positions-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; margin-top: 16px; overflow-x: auto; }
+  .pos-table { width: 100%; border-collapse: collapse; min-width: 480px; }
+  .pos-table th { font-size: 0.6875rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 0 12px; text-align: left; }
+  .pos-table th:not(:first-child) { text-align: right; }
+  .pos-table td { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8125rem; }
+  .pos-table td:not(:first-child) { text-align: right; }
+  .pos-vault-name { font-weight: 600; color: #fff; }
+  .pos-vault-sub { font-size: 0.6875rem; color: #555; margin-top: 2px; }
+  .pos-apy { color: #c8f135; font-weight: 700; }
+  .pos-gain { color: #c8f135; font-weight: 600; }
+  .pos-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pos-badge.active { background: rgba(200,241,53,0.12); color: #c8f135; }
+
+  @media (max-width: 900px) {
+    .port-body { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .port-wrap { padding: 16px; }
+    .port-title { font-size: 1.375rem; }
+    .alloc-inner { flex-direction: column; align-items: flex-start; }
+    .summary-row { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 400px) {
+    .summary-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="port-wrap">
+
+  <!-- Header -->
+  <div class="port-header">
+    <div>
+      <div class="port-title">Portfolio</div>
+      <div class="port-subtitle">Your complete DeFi position overview</div>
+    </div>
+    <div class="port-updated" id="port-updated">Updated just now</div>
+  </div>
+
+  <!-- Summary row -->
+  <div class="summary-row">
+    <SumCard label="Total Value"      id="p-total"   subId="p-total-sub"   valClass="white" sub="DeFi + TradFi" />
+    <SumCard label="DeFi Balance"     id="p-defi"    subId="p-defi-sub"    valClass="white" subClass="pos" sub="Across vaults" />
+    <SumCard label="Total Yield Earned" id="p-yield" subId="p-yield-sub"   valClass="pos"   subClass="pos" sub="All time" />
+    <SumCard label="Monthly Yield"    id="p-monthly" subId="p-monthly-sub" valClass="pos"   sub="Projected" />
+  </div>
+
+  <!-- Body: allocation + goals -->
+  <div class="port-body">
+
+    <!-- Allocation donut -->
+    <div class="alloc-card">
+      <div class="card-title">Vault Allocation</div>
+      <div class="alloc-inner">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 140 140" id="donut-svg"></svg>
+          <div class="donut-center">
+            <div class="donut-center-val" id="donut-val">$0</div>
+            <div class="donut-center-label">DeFi</div>
+          </div>
+        </div>
+        <div class="alloc-legend" id="alloc-legend"></div>
+      </div>
     </div>
 
-    <!-- Risk Profile -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            📊 Risk Profile
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Your risk profile determines how new deposits are split across YO
-            Protocol vaults.
-        </p>
-        <div style="display: flex; gap: var(--space-3);" id="risk-selector">
-            <button
-                class="btn btn-ghost btn-lg risk-btn"
-                data-risk="conservative"
-                onclick="setRisk('conservative', this)"
-                style="flex:1;"
-            >
-                <div>🛡️ Conservative</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Capital preservation
-                </div>
-            </button>
-            <button
-                class="btn btn-primary btn-lg risk-btn"
-                data-risk="moderate"
-                onclick="setRisk('moderate', this)"
-                style="flex:1;"
-            >
-                <div>⚖️ Moderate</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Balanced growth
-                </div>
-            </button>
-            <button
-                class="btn btn-ghost btn-lg risk-btn"
-                data-risk="aggressive"
-                onclick="setRisk('aggressive', this)"
-                style="flex:1;"
-            >
-                <div>🚀 Aggressive</div>
-                <div
-                    style="font-size:var(--font-xs);color:var(--text-muted);margin-top:4px;"
-                >
-                    Maximum yield
-                </div>
-            </button>
-        </div>
-
-        <div id="strategy-preview" style="margin-top: var(--space-6);"></div>
+    <!-- Goals progress -->
+    <div class="goals-card">
+      <div class="card-title">Goals Progress</div>
+      <div id="goals-list">
+        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+      </div>
     </div>
 
-    <!-- Auto-Deposit -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            🔄 Auto-Deposit
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Automatically deposit to your goals on a schedule. Auto-deposit
-            pauses if your bank balance is below the safety threshold.
-        </p>
+  </div>
 
-        <div class="input-group">
-            <label class="input-label">Bank Balance Safety Threshold</label>
-            <input
-                type="number"
-                class="input"
-                id="threshold-input"
-                placeholder="1000"
-                value="1000"
-                style="max-width: 300px;"
-            />
-            <p
-                style="font-size: var(--font-xs); color: var(--text-muted); margin-top: var(--space-1);"
-            >
-                Auto-deposits pause if your bank balance drops below this
-                amount.
-            </p>
-        </div>
+  <!-- Positions table -->
+  <div class="positions-card">
+    <div class="card-title">Active Positions</div>
+    <table class="pos-table">
+      <thead>
+        <tr>
+          <th>Vault</th>
+          <th>Balance</th>
+          <th>APY</th>
+          <th>Yield Earned</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="positions-body">
+        <tr><td colspan="5" style="text-align:center;color:#555;padding:24px 0;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-        <button class="btn btn-primary" onclick="saveThreshold()"
-            >Save Threshold</button
-        >
-    </div>
-
-    <!-- Wallet Management -->
-    <div class="glass-card-static" style="margin-bottom: var(--space-6);">
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600;"
-        >
-            👛 Wallet
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-4); font-size: var(--font-sm);"
-        >
-            Connect your wallet to execute live transactions on Base or
-            Ethereum.
-        </p>
-        <div style="display: flex; align-items: center; gap: var(--space-4);">
-            <div
-                style="padding: var(--space-3) var(--space-5); background: var(--bg-glass); border-radius: var(--radius-md); font-family: monospace; font-size: var(--font-sm); color: var(--text-secondary);"
-                id="wallet-addr"
-            >
-                0x742d...2bD18 (Demo)
-            </div>
-            <button class="btn btn-ghost">Change Wallet</button>
-        </div>
-    </div>
-
-    <!-- Emergency Controls -->
-    <div
-        class="glass-card-static"
-        style="border-color: rgba(239, 68, 68, 0.3);"
-    >
-        <h3
-            style="margin-bottom: var(--space-4); font-size: var(--font-lg); font-weight: 600; color: var(--accent-red);"
-        >
-            🚨 Emergency Controls
-        </h3>
-        <p
-            style="color: var(--text-secondary); margin-bottom: var(--space-6); font-size: var(--font-sm);"
-        >
-            Withdraw all funds from all vaults to stablecoins. Use this only in
-            an emergency.
-        </p>
-        <button class="btn btn-danger btn-lg" onclick="emergencyWithdraw()">
-            🚨 Withdraw All to Stablecoin
-        </button>
-        <p
-            style="font-size: var(--font-xs); color: var(--text-muted); margin-top: var(--space-3);"
-        >
-            This will redeem all vault positions and convert to USDC. Gas costs
-            may apply. This action requires your confirmation.
-        </p>
-    </div>
-
-    <script>
-        interface Window {
-            setRisk: (profile: string, btn: HTMLButtonElement) => void;
-            renderStrategyPreview: (profile: string) => void;
-            saveThreshold: () => void;
-            showToast: (message: string) => void;
-            emergencyWithdraw: () => void;
-        }
-
-        const strategies = {
-            conservative: [
-                { name: "YO USD Vault", pct: 40, color: "#3b82f6" },
-                { name: "YO USDT Vault", pct: 35, color: "#8b5cf6" },
-                { name: "YO EUR Vault", pct: 25, color: "#06b6d4" },
-            ],
-            moderate: [
-                { name: "YO USD Vault", pct: 20, color: "#3b82f6" },
-                { name: "YO ETH Vault", pct: 40, color: "#10b981" },
-                { name: "YO Gold Vault", pct: 20, color: "#f59e0b" },
-                { name: "YO EUR Vault", pct: 20, color: "#06b6d4" },
-            ],
-            aggressive: [
-                { name: "YO USD Vault", pct: 10, color: "#3b82f6" },
-                { name: "YO ETH Vault", pct: 45, color: "#10b981" },
-                { name: "YO BTC Vault", pct: 30, color: "#f59e0b" },
-                { name: "YO Gold Vault", pct: 15, color: "#8b5cf6" },
-            ],
-        };
-
-        (window as any).setRisk = function (profile, btn) {
-            document.querySelectorAll(".risk-btn").forEach((b) => {
-                b.classList.remove("btn-primary");
-                b.classList.add("btn-ghost");
-            });
-            btn.classList.remove("btn-ghost");
-            btn.classList.add("btn-primary");
-
-            (window as any).renderStrategyPreview(profile);
-        };
-
-        (window as any).renderStrategyPreview = function (profile) {
-            const strat = strategies[profile];
-            const preview = document.getElementById("strategy-preview");
-            if (!preview) return;
-
-            preview.innerHTML = `
-        <div style="font-size: var(--font-sm); font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-3);">
-          Allocation Preview
-        </div>
-        <div style="display: flex; height: 12px; border-radius: var(--radius-full); overflow: hidden; margin-bottom: var(--space-3);">
-          ${strat.map((s) => `<div style="width: ${s.pct}%; background: ${s.color}; transition: width 0.3s;"></div>`).join("")}
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: var(--space-3);">
-          ${strat
-              .map(
-                  (s) => `
-            <div style="display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-xs);">
-              <div style="width: 10px; height: 10px; border-radius: 50%; background: ${s.color};"></div>
-              <span style="color: var(--text-secondary);">${s.name}</span>
-              <span style="font-weight: 700;">${s.pct}%</span>
-            </div>
-          `,
-              )
-              .join("")}
-        </div>
-      `;
-        };
-
-        (window as any).saveThreshold = function () {
-            const input = document.getElementById("threshold-input") as HTMLInputElement | null;
-            if (!input) return;
-            const val = input.value;
-            (window as any).showToast(`Safety threshold set to $${val}`);
-        };
-
-        (window as any).emergencyWithdraw = function () {
-            if (
-                confirm(
-                    "⚠️ EMERGENCY WITHDRAW\n\nThis will withdraw ALL funds from ALL vaults.\n\nAre you absolutely sure?",
-                )
-            ) {
-                if (
-                    confirm("Final confirmation: Withdraw everything to USDC?")
-                ) {
-                    (window as any).showToast(
-                        "🚨 Emergency withdrawal initiated... (demo mode)",
-                    );
-                }
-            }
-        };
-
-        (window as any).showToast = function (message) {
-            const toast = document.createElement("div");
-            toast.style.cssText =
-                "position:fixed;top:20px;right:20px;z-index:9999;background:var(--bg-card);border:1px solid var(--border-glass-hover);color:var(--text-primary);padding:14px 20px;border-radius:var(--radius-md);font-weight:500;font-size:0.9rem;box-shadow:var(--shadow-lg);backdrop-filter:blur(20px);animation:celebrate 0.3s ease-out;";
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        };
-
-        (window as any).renderStrategyPreview("moderate");
-    </script>
+</div>
 </MainLayout>
+
+<script>
+const API = "/api";
+const fmt = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
+const fmtK = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}K` : fmt(n);
+
+const VAULT_COLORS = ["#c8f135","#3b82f6","#a78bfa","#f59e0b","#06b6d4","#ec4899","#22c55e"];
+const VAULT_APYS: Record<string,number> = {
+  yoUSD: 5.2, yoETH: 8.4, yoBTC: 7.1, yoGOLD: 4.8,
+  yoUSDT: 5.0, yoEUR: 4.2, default: 6.0
+};
+
+function drawDonut(segments: {pct: number; color: string}[]) {
+  const svg = document.getElementById("donut-svg")!;
+  const cx = 70, cy = 70, r = 54, stroke = 18;
+  const circumference = 2 * Math.PI * r;
+  let offset = -circumference * 0.25;
+
+  const paths = segments.map(s => {
+    const dash = (s.pct / 100) * circumference;
+    const gap  = circumference - dash;
+    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offset}" style="transition:stroke-dasharray 0.5s ease;"/>`;
+    offset += dash;
+    return el;
+  });
+
+  svg.innerHTML = `
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${stroke}"/>
+    ${paths.join("")}
+  `;
+}
+
+async function loadPortfolio() {
+  try {
+    const [dashRes, goalsRes] = await Promise.all([
+      fetch(`${API}/dashboard`),
+      fetch(`${API}/goals`),
+    ]);
+    const dash = await dashRes.json();
+    const goalsData = await goalsRes.json();
+
+    if (!dash.success) return;
+    const d = dash.data;
+
+    document.getElementById("p-total")!.textContent = fmt(d.totalNetWorth);
+    document.getElementById("p-total-sub")!.textContent = `DeFi ${fmtK(d.defiBalance)} + TradFi ${fmtK(d.tradFiBalance)}`;
+    document.getElementById("p-defi")!.textContent = fmt(d.defiBalance);
+    document.getElementById("p-defi-sub")!.textContent = `${d.activeVaults} active vault${d.activeVaults !== 1 ? "s" : ""}`;
+    document.getElementById("p-yield")!.textContent = fmt(d.totalYieldEarned);
+    document.getElementById("p-yield-sub")!.textContent = `+${((d.totalYieldEarned / (d.defiBalance || 1)) * 100).toFixed(2)}% return`;
+    document.getElementById("p-monthly")!.textContent = fmt(d.yieldMonth);
+    document.getElementById("p-monthly-sub")!.textContent = `~${fmt(d.yieldMonth * 12)} / year`;
+    document.getElementById("donut-val")!.textContent = fmtK(d.defiBalance);
+
+    const goals = goalsData.success ? goalsData.data : [];
+    const vaultMap: Record<string, {name: string; balance: number; color: string; idx: number}> = {};
+    let colorIdx = 0;
+
+    goals.forEach((g: any) => {
+      g.vaultAllocations.forEach((a: any) => {
+        if (!vaultMap[a.vaultId]) {
+          vaultMap[a.vaultId] = { name: a.vaultName, balance: 0, color: VAULT_COLORS[colorIdx++ % VAULT_COLORS.length], idx: colorIdx };
+        }
+        vaultMap[a.vaultId].balance += a.currentBalance;
+      });
+    });
+
+    const vaults = Object.entries(vaultMap)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.balance - a.balance);
+
+    const total = vaults.reduce((s, v) => s + v.balance, 0) || 1;
+
+    drawDonut(vaults.map(v => ({ pct: (v.balance / total) * 100, color: v.color })));
+
+    document.getElementById("alloc-legend")!.innerHTML = vaults.map(v => `
+      <div class="legend-row">
+        <div class="legend-dot" style="background:${v.color};"></div>
+        <span class="legend-name">${v.name}</span>
+        <span class="legend-pct">${((v.balance / total) * 100).toFixed(0)}%</span>
+        <span class="legend-val">${fmtK(v.balance)}</span>
+      </div>`).join("");
+
+    const goalsList = document.getElementById("goals-list")!;
+    if (d.goalSummaries.length === 0) {
+      goalsList.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
+    } else {
+      goalsList.innerHTML = d.goalSummaries.map((g: any) => {
+        const deadline = new Date(g.deadline).toLocaleDateString("en-US",{month:"short",year:"numeric"});
+        return `
+          <div class="goal-row">
+            <div class="goal-row-top">
+              <span class="goal-row-name">${g.name}</span>
+              <span class="goal-row-pct">${g.progressPercent}%</span>
+            </div>
+            <div class="goal-row-bar">
+              <div class="goal-row-fill" style="width:${g.progressPercent}%;"></div>
+            </div>
+            <div class="goal-row-meta">
+              <span>${fmt(g.currentAmount)} of ${fmt(g.targetAmount)}</span>
+              <span>Due ${deadline}</span>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    const tbody = document.getElementById("positions-body")!;
+    if (vaults.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#555;padding:24px 0;">No positions found</td></tr>`;
+    } else {
+      tbody.innerHTML = vaults.map(v => {
+        const apy = VAULT_APYS[v.id] ?? VAULT_APYS.default;
+        const yieldEarned = v.balance * 0.038;
+        return `
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;border-radius:50%;background:${v.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <div style="width:10px;height:10px;border-radius:50%;background:${v.color};"></div>
+                </div>
+                <div>
+                  <div class="pos-vault-name">${v.name}</div>
+                  <div class="pos-vault-sub">${v.id.toUpperCase()}</div>
+                </div>
+              </div>
+            </td>
+            <td style="font-weight:700;">${fmt(v.balance)}</td>
+            <td class="pos-apy">${apy.toFixed(1)}%</td>
+            <td class="pos-gain">+${fmt(yieldEarned)}</td>
+            <td><span class="pos-badge active">Active</span></td>
+          </tr>`;
+      }).join("");
+    }
+
+    document.getElementById("port-updated")!.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}`;
+
+  } catch(err) {
+    console.error("Portfolio load failed:", err);
+  }
+}
+
+loadPortfolio();
+</script>

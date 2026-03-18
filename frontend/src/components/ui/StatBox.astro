@@ -1,0 +1,17 @@
+---
+interface Props {
+  label: string;
+  value?: string;
+  sub?: string;
+  valClass?: string; // 'pos' | 'neg'
+  subClass?: string; // 'pos' | 'neg' | 'muted'
+  id?: string;
+  subId?: string;
+}
+const { label, value = '$0.00', sub, valClass = '', subClass = '', id, subId } = Astro.props;
+---
+<div class="stat-box">
+  <div class="stat-box-label">{label}</div>
+  <div class={`stat-box-val ${valClass}`} id={id}>{value}</div>
+  {sub && <div class={`stat-box-sub ${subClass}`} id={subId}>{sub}</div>}
+</div>

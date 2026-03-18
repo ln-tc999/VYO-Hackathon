@@ -20,7 +20,7 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 2,
         lockupPeriod: 'None (instant redemption)',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoUSD.svg',
+        logoUrl: '/assets/yoUSD.png',
     },
     {
         id: 'yoUSDT',
@@ -36,7 +36,7 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 2,
         lockupPeriod: 'None (instant redemption)',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoUSDT.svg',
+        logoUrl: '/assets/yoUSDT.png',
     },
     {
         id: 'yoETH',
@@ -52,7 +52,7 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 5,
         lockupPeriod: 'None',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoETH.svg',
+        logoUrl: '/assets/yoETH.png',
     },
     {
         id: 'yoBTC',
@@ -68,7 +68,7 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 6,
         lockupPeriod: 'None',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoBTC.svg',
+        logoUrl: '/assets/yoBTC.png',
     },
     {
         id: 'yoGOLD',
@@ -84,7 +84,7 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 4,
         lockupPeriod: 'None',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoGOLD.svg',
+        logoUrl: '/assets/yoGold.png',
     },
     {
         id: 'yoEUR',
@@ -100,6 +100,6 @@ export const MOCK_VAULTS: VaultInfo[] = [
         riskScore: 3,
         lockupPeriod: 'None',
         auditUrl: 'https://yo.xyz/security',
-        logoUrl: '/assets/vaults/yoEUR.svg',
+        logoUrl: '/assets/yoEuro.png',
     },
 ];

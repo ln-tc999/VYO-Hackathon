@@ -1,0 +1,88 @@
+---
+import WalletButton from '../wallet/WalletButton.tsx';
+
+interface Props {
+  activePage?: string;
+}
+const { activePage = 'dashboard' } = Astro.props;
+
+const links = [
+  { href: '/dashboard',          key: 'dashboard', label: 'Dashboard' },
+  { href: '/dashboard/settings', key: 'settings',  label: 'Portfolio' },
+  { href: '/dashboard/vaults',   key: 'vaults',    label: 'Vaults'    },
+  { href: '/dashboard/goals',    key: 'goals',     label: 'Goals'     },
+  { href: '/dashboard/ai',       key: 'ai',        label: 'AI Agent'  },
+];
+---
+
+<header class="topnav">
+  <a href="/dashboard" class="topnav-logo">
+    <div class="topnav-logo-icon">V</div>
+    <span class="topnav-logo-text">vyo</span>
+  </a>
+
+  <nav class="topnav-links">
+    {links.map(l => (
+      <a href={l.href} class={`topnav-link ${activePage === l.key ? 'active' : ''}`}>
+        {l.label}
+      </a>
+    ))}
+  </nav>
+
+  <div class="topnav-right">
+    <div class="topnav-search" aria-label="Search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </div>
+
+    <div style="display:flex;align-items:center;">
+      <WalletButton client:only="react" />
+    </div>
+
+    <div class="topnav-notif" aria-label="Notifications">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </div>
+
+    <!-- Hamburger (mobile) -->
+    <button class="topnav-hamburger" id="hamburger-btn" aria-label="Menu" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile drawer -->
+<nav class="mobile-menu" id="mobile-menu" aria-hidden="true">
+  {links.map(l => (
+    <a href={l.href} class={`topnav-link ${activePage === l.key ? 'active' : ''}`}>
+      {l.label}
+    </a>
+  ))}
+</nav>
+
+<script>
+  const btn = document.getElementById('hamburger-btn')!;
+  const menu = document.getElementById('mobile-menu')!;
+
+  btn.addEventListener('click', () => {
+    const open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+    menu.setAttribute('aria-hidden', String(!open));
+  });
+
+  // Close on link click
+  menu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
+    });
+  });
+</script>
