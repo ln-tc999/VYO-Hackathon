@@ -3,34 +3,229 @@ import MainLayout from "../../layouts/MainLayout.astro";
 ---
 
 <MainLayout title="AI Agent" activePage="ai">
-<div style="padding:28px 24px;">
+<style is:global>
+  .ai-page { padding: 28px 24px; max-width: 900px; margin: 0 auto; }
 
-  <div class="page-header">
-    <h1 class="page-title">AI Agent</h1>
-    <p class="page-subtitle">Every decision is explained and requires your approval before execution.</p>
-  </div>
+  /* Context card */
+  .ai-context-card {
+    background: linear-gradient(135deg, rgba(200,241,53,0.06) 0%, rgba(200,241,53,0.02) 100%);
+    border: 1px solid rgba(200,241,53,0.2);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .ai-context-intro {}
+  .ai-context-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(200,241,53,0.15); color: #c8f135;
+    font-size: 0.6875rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px;
+    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .ai-context-title { font-size: 1.0625rem; font-weight: 800; margin-bottom: 6px; }
+  .ai-context-desc  { font-size: 0.8125rem; color: #555; line-height: 1.6; }
 
-  <!-- Actions bar -->
-  <div style="display:flex; gap:var(--s3); margin-bottom:var(--s6); flex-wrap:wrap; align-items:center;">
-    <button class="btn btn-primary btn-lg" id="scan-btn" onclick="runScan()">
-      Run Scan
-    </button>
-    <div style="display:flex; gap:var(--s2); margin-left:auto;">
-      <button class="btn btn-ghost filter-btn active" data-filter="all"             onclick="filterDecisions('all',this)">All</button>
-      <button class="btn btn-ghost filter-btn"        data-filter="pending_approval" onclick="filterDecisions('pending_approval',this)">Pending</button>
-      <button class="btn btn-ghost filter-btn"        data-filter="executed"         onclick="filterDecisions('executed',this)">Executed</button>
+  .ai-how-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+  }
+  .ai-how-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: 1px; }
+  .ai-how-title { font-weight: 700; font-size: 0.875rem; margin-bottom: 3px; }
+  .ai-how-desc  { font-size: 0.75rem; color: #555; line-height: 1.5; }
+
+  /* Status bar */
+  .ai-status-bar {
+    display: flex; align-items: center; gap: 12;
+    padding: 12px 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 20px;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .ai-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #c8f135;
+    box-shadow: 0 0 8px rgba(200,241,53,0.6);
+    animation: pulse-dot 2s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .ai-status-text { font-size: 0.8125rem; font-weight: 600; }
+  .ai-status-sub  { font-size: 0.75rem; color: #555; }
+  .ai-wallet-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px; font-size: 0.75rem; color: #888;
+    margin-left: auto;
+  }
+  .ai-wallet-chip.connected { color: #c8f135; border-color: rgba(200,241,53,0.2); }
+
+  /* Actions */
+  .ai-actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+
+  /* Decision list */
+  .decisions-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .decision-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .decision-card:hover { border-color: var(--border-hover); }
+  .decision-card::before {
+    content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+  }
+  .decision-card.rebalance::before          { background: var(--blue); }
+  .decision-card.risk_alert::before         { background: var(--red); }
+  .decision-card.deposit_suggestion::before { background: var(--lime); }
+  .decision-card.goal_forecast::before      { background: #a78bfa; }
+
+  .decision-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 10px; gap: 12px;
+  }
+  .decision-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .decision-time { font-size: 0.6875rem; color: #555; flex-shrink: 0; }
+
+  .badge {
+    font-size: 0.6875rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-info    { background: rgba(59,130,246,0.12);  color: #3b82f6; }
+  .badge-warning { background: rgba(245,158,11,0.12);  color: #f59e0b; }
+  .badge-success { background: rgba(200,241,53,0.12);  color: #c8f135; }
+  .badge-danger  { background: rgba(239,68,68,0.12);   color: #ef4444; }
+  .badge-purple  { background: rgba(167,139,250,0.12); color: #a78bfa; }
+
+  .status-badge {
+    font-size: 0.6875rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .status-badge.pending_approval { background: rgba(245,158,11,0.12); color: #f59e0b; }
+  .status-badge.approved         { background: rgba(59,130,246,0.12); color: #3b82f6; }
+  .status-badge.executed         { background: rgba(200,241,53,0.12); color: #c8f135; }
+  .status-badge.rejected         { background: rgba(239,68,68,0.12);  color: #ef4444; }
+
+  .decision-action {
+    font-size: 0.9375rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.2px;
+  }
+  .decision-reasoning {
+    font-size: 0.8125rem; color: #666; line-height: 1.6;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px; margin-bottom: 12px;
+  }
+  .decision-metrics {
+    display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .metric-label { font-size: 0.6875rem; color: #555; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .metric-value { font-size: 0.9375rem; font-weight: 700; }
+  .metric-value.pos { color: #c8f135; }
+  .metric-value.neg { color: #ef4444; }
+
+  .decision-btns { display: flex; gap: 8px; }
+  .btn-approve {
+    padding: 8px 18px; border-radius: 8px;
+    background: #c8f135; color: #000;
+    font-size: 0.8125rem; font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s;
+  }
+  .btn-approve:hover { background: #d4f53c; }
+  .btn-dismiss {
+    padding: 8px 14px; border-radius: 8px;
+    background: none; color: #555;
+    font-size: 0.8125rem; font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.08); cursor: pointer; font-family: var(--font);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-dismiss:hover { border-color: rgba(255,255,255,0.15); color: #888; }
+
+  .empty-state {
+    text-align: center; padding: 48px 24px; color: #555;
+  }
+  .empty-state-icon { font-size: 2rem; margin-bottom: 12px; }
+  .empty-state-text { font-size: 0.9375rem; margin-bottom: 6px; }
+  .empty-state-sub  { font-size: 0.8125rem; color: #444; }
+
+  @media (max-width: 640px) {
+    .ai-context-card { grid-template-columns: 1fr; }
+    .ai-page { padding: 16px; }
+  }
+</style>
+
+<div class="ai-page">
+
+  <!-- Context card -->
+  <div class="ai-context-card">
+    <div class="ai-context-intro">
+      <div class="ai-context-badge">
+        <span>●</span> Vio AI Agent
+      </div>
+      <div class="ai-context-title">Your autonomous yield optimizer</div>
+      <div class="ai-context-desc">
+        Vio monitors your vaults 24/7, spots better opportunities, and suggests actions.
+        You always approve before anything executes.
+      </div>
+    </div>
+    <div class="ai-how-item">
+      <div class="ai-how-icon">👁</div>
+      <div>
+        <div class="ai-how-title">Sense</div>
+        <div class="ai-how-desc">Reads live APY, TVL, and your positions across all YO vaults.</div>
+      </div>
+    </div>
+    <div class="ai-how-item">
+      <div class="ai-how-icon">🧠</div>
+      <div>
+        <div class="ai-how-title">Plan & Act</div>
+        <div class="ai-how-desc">Generates rebalance or compound suggestions. Executes only with your approval.</div>
+      </div>
     </div>
   </div>
 
-  <!-- Count -->
-  <div class="section-header">
-    <h2 class="section-title">Decision Log</h2>
-    <span style="font-size:var(--font-xs);color:var(--text-muted);" id="decision-count">0 decisions</span>
+  <!-- Status bar -->
+  <div class="ai-status-bar">
+    <div class="ai-status-dot"></div>
+    <div>
+      <div class="ai-status-text">Vio Agent Active</div>
+      <div class="ai-status-sub">Scanning vaults every 15 minutes</div>
+    </div>
+    <div class="ai-wallet-chip" id="wallet-chip">
+      <span>○</span>
+      <span id="wallet-address-display">Not connected</span>
+    </div>
   </div>
 
+  <!-- Actions bar -->
+  <div class="ai-actions">
+    <button class="btn btn-primary btn-lg" id="scan-btn" onclick="runScan()">
+      ⟳ Run Scan Now
+    </button>
+    <div style="display:flex;gap:6px;margin-left:auto;">
+      <button class="btn btn-ghost filter-btn active" data-filter="all"              onclick="filterDecisions('all',this)">All</button>
+      <button class="btn btn-ghost filter-btn"        data-filter="pending_approval" onclick="filterDecisions('pending_approval',this)">Pending</button>
+      <button class="btn btn-ghost filter-btn"        data-filter="executed"         onclick="filterDecisions('executed',this)">Executed</button>
+    </div>
+    <span style="font-size:0.75rem;color:#555;" id="decision-count"></span>
+  </div>
+
+  <!-- Decision log -->
   <div class="decisions-list" id="decisions-list">
-    <div class="card empty-state loading">
-      <div class="empty-state-text">Loading decisions...</div>
+    <div class="empty-state loading">
+      <div class="empty-state-text">Loading...</div>
     </div>
   </div>
 
@@ -38,46 +233,60 @@ import MainLayout from "../../layouts/MainLayout.astro";
 </MainLayout>
 
 <script>
-  const API = "/api";
+  const API = '/api';
   let allDecisions: any[] = [];
-  let currentFilter = "all";
+  let currentFilter = 'all';
+  let walletAddress: string | null = null;
 
-  const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-  function timeAgo(dateStr) {
+  function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
+    if (mins < 1)  return 'just now';
     if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  function renderDecisions(decisions) {
-    const list = document.getElementById("decisions-list");
-    const countEl = document.getElementById("decision-count");
-    countEl.textContent = `${decisions.length} decision${decisions.length !== 1 ? "s" : ""}`;
+  const TYPE_BADGE: Record<string, string> = {
+    rebalance:          'badge-info',
+    risk_alert:         'badge-danger',
+    deposit_suggestion: 'badge-success',
+    goal_forecast:      'badge-purple',
+  };
 
-    if (decisions.length === 0) {
+  function renderDecisions(decisions: any[]) {
+    const list = document.getElementById('decisions-list')!;
+    const countEl = document.getElementById('decision-count')!;
+    countEl.textContent = `${decisions.length} decision${decisions.length !== 1 ? 's' : ''}`;
+
+    if (!decisions.length) {
       list.innerHTML = `
-        <div class="card empty-state">
+        <div class="empty-state">
           <div class="empty-state-icon">◈</div>
-          <div class="empty-state-text">No decisions yet — run a scan</div>
+          <div class="empty-state-text">No decisions yet</div>
+          <div class="empty-state-sub">Click "Run Scan Now" to let Vio analyze your vaults</div>
         </div>`;
       return;
     }
 
     list.innerHTML = decisions.map(d => {
-      const isPending  = d.status === "pending_approval";
-      const isExecuted = d.status === "executed";
-      const isRejected = d.status === "rejected";
+      const isPending  = d.status === 'pending_approval';
+      const isExecuted = d.status === 'executed';
+      const isRejected = d.status === 'rejected';
+      const typeLabel  = d.type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const net        = d.expectedGain - d.gasCost;
 
       return `
-        <div class="card decision-card ${d.type}">
+        <div class="decision-card ${d.type}">
           <div class="decision-header">
-            <div class="decision-type">
-              <span class="badge badge-${d.type==='rebalance'?'info':d.type==='risk_alert'?'danger':'success'}">${d.type.replace(/_/g," ")}</span>
-              <span class="decision-goal">${d.goalName}</span>
+            <div class="decision-meta">
+              <span class="badge ${TYPE_BADGE[d.type] || 'badge-info'}">${typeLabel}</span>
+              <span style="font-size:0.75rem;color:#555;">${d.goalName}</span>
+              <span class="status-badge ${d.status}">${d.status.replace(/_/g,' ')}</span>
             </div>
             <span class="decision-time">${timeAgo(d.createdAt)}</span>
           </div>
@@ -86,99 +295,152 @@ import MainLayout from "../../layouts/MainLayout.astro";
           <div class="decision-reasoning">${d.reasoning}</div>
 
           <div class="decision-metrics">
-            <div class="metric">
+            <div>
               <div class="metric-label">Expected Gain</div>
-              <div class="metric-value positive">${fmt(d.expectedGain)}</div>
+              <div class="metric-value pos">${fmt(d.expectedGain)}</div>
             </div>
-            <div class="metric">
+            <div>
               <div class="metric-label">Gas Cost</div>
-              <div class="metric-value negative">${fmt(d.gasCost)}</div>
+              <div class="metric-value neg">${fmt(d.gasCost)}</div>
             </div>
-            <div class="metric">
+            <div>
               <div class="metric-label">Net Benefit</div>
-              <div class="metric-value ${d.expectedGain - d.gasCost > 0 ? 'positive' : 'negative'}">${fmt(d.expectedGain - d.gasCost)}</div>
+              <div class="metric-value ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div>
             </div>
           </div>
 
           ${isPending ? `
-            <div class="decision-actions">
-              <button class="btn btn-primary" onclick="approveDecision('${d.id}')">Approve & Execute</button>
-              <button class="btn btn-ghost"   onclick="rejectDecision('${d.id}')">Dismiss</button>
-            </div>` : ""}
-
-          ${isExecuted ? `<div class="decision-status executed">✓ Executed</div>` : ""}
-          ${isRejected ? `<div class="decision-status rejected">✕ Dismissed</div>` : ""}
+            <div class="decision-btns">
+              <button class="btn-approve" onclick="approveDecision('${d.id}')">Approve & Execute</button>
+              <button class="btn-dismiss" onclick="rejectDecision('${d.id}')">Dismiss</button>
+            </div>` : ''}
         </div>`;
-    }).join("");
+    }).join('');
   }
 
-  async function loadDecisions() {
+  async function getWalletAddress(): Promise<string | null> {
+    const eth = (window as any).ethereum;
+    if (!eth?.request) return null;
     try {
-      const res = await fetch(`${API}/ai/decisions`);
-      const json = await res.json();
-      if (json.success) {
-        allDecisions = json.data;
-        applyFilter();
-      }
-    } catch (err) {
-      console.error("Failed to load decisions:", err);
+      const accounts = await eth.request({ method: 'eth_accounts' });
+      return accounts?.[0] || null;
+    } catch { return null; }
+  }
+
+  function updateWalletChip() {
+    const chip = document.getElementById('wallet-chip')!;
+    const display = document.getElementById('wallet-address-display')!;
+    if (walletAddress) {
+      display.textContent = `${walletAddress.slice(0,6)}…${walletAddress.slice(-4)}`;
+      chip.classList.add('connected');
+      chip.querySelector('span')!.textContent = '●';
+    } else {
+      display.textContent = 'Not connected';
+      chip.classList.remove('connected');
     }
   }
 
+  async function apiFetch(url: string, options: RequestInit = {}) {
+    const headers: Record<string,string> = { ...(options.headers as any) };
+    if (walletAddress) headers['X-Wallet-Address'] = walletAddress;
+    return fetch(url, { ...options, headers });
+  }
+
+  async function loadDecisions() {
+    if (!walletAddress) {
+      document.getElementById('decisions-list')!.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔗</div>
+          <div class="empty-state-text">Connect your wallet to view AI recommendations</div>
+          <div class="empty-state-sub">Vio needs to know your address to analyze your positions</div>
+        </div>`;
+      return;
+    }
+    try {
+      const res  = await apiFetch(`${API}/ai/decisions`);
+      const json = await res.json();
+      if (json.success) { allDecisions = json.data; applyFilter(); }
+    } catch (err) { console.error('Failed to load decisions:', err); }
+  }
+
   function applyFilter() {
-    const filtered = currentFilter === "all"
+    const filtered = currentFilter === 'all'
       ? allDecisions
-      : allDecisions.filter(d => d.status === currentFilter);
+      : allDecisions.filter((d: any) => d.status === currentFilter);
     renderDecisions(filtered);
+  }
+
+  async function runScan() {
+    if (!walletAddress) { showToast('Connect your wallet first'); return; }
+    const btn = document.getElementById('scan-btn') as HTMLButtonElement;
+    btn.textContent = '⟳ Scanning...';
+    btn.disabled = true;
+    try {
+      const res  = await apiFetch(`${API}/ai/rebalance`, { method: 'POST' });
+      const json = await res.json();
+      const count = json.data?.length ?? 0;
+      showToast(count > 0
+        ? `Found ${count} new recommendation${count > 1 ? 's' : ''}`
+        : 'All looks good — no new recommendations');
+      loadDecisions();
+    } catch { showToast('Scan failed. Make sure wallet is connected.'); }
+    finally { btn.textContent = '⟳ Run Scan Now'; btn.disabled = false; }
+  }
+
+  async function approveDecision(id: string) {
+    if (!walletAddress) return;
+    try {
+      await apiFetch(`${API}/ai/decisions/${id}/approve`, { method: 'POST' });
+      showToast('Decision approved — executing...');
+      loadDecisions();
+    } catch { showToast('Failed to approve'); }
+  }
+
+  async function rejectDecision(id: string) {
+    if (!walletAddress) return;
+    try {
+      await apiFetch(`${API}/ai/decisions/${id}/reject`, { method: 'POST' });
+      showToast('Decision dismissed');
+      loadDecisions();
+    } catch { showToast('Failed to dismiss'); }
   }
 
   function filterDecisions(filter: string, btn: HTMLElement) {
     currentFilter = filter;
-    document.querySelectorAll(".filter-btn").forEach(b => {
-      b.classList.remove("btn-primary", "active"); b.classList.add("btn-ghost");
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('btn-primary', 'active'); b.classList.add('btn-ghost');
     });
-    btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary", "active");
+    btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary', 'active');
     applyFilter();
   }
 
-  async function runScan() {
-    const btn = document.getElementById("scan-btn") as HTMLButtonElement;
-    btn.textContent = "Scanning...";
-    btn.disabled = true;
-    try {
-      const res = await fetch(`${API}/ai/rebalance`, { method: "POST" });
-      const json = await res.json();
-      showToast(json.success && json.data.length > 0
-        ? `Found ${json.data.length} new recommendation${json.data.length > 1 ? "s" : ""}`
-        : "All looks good — no new recommendations");
-      loadDecisions();
-    } catch (err) {
-      console.error("Scan failed:", err);
-    } finally {
-      btn.textContent = "Run Scan";
-      btn.disabled = false;
-    }
-  }
-
-  async function approveDecision(id) {
-    await fetch(`${API}/ai/decisions/${id}/approve`, { method: "POST" });
-    showToast("Decision approved");
-    loadDecisions();
-  }
-
-  async function rejectDecision(id) {
-    await fetch(`${API}/ai/decisions/${id}/reject`, { method: "POST" });
-    showToast("Decision dismissed");
-    loadDecisions();
-  }
-
   function showToast(msg: string) {
-    const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg;
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
   }
 
-  loadDecisions();
+  // Expose to inline onclick
+  (window as any).runScan = runScan;
+  (window as any).approveDecision = approveDecision;
+  (window as any).rejectDecision = rejectDecision;
+  (window as any).filterDecisions = filterDecisions;
+
+  // Init
+  getWalletAddress().then(addr => {
+    walletAddress = addr;
+    updateWalletChip();
+    loadDecisions();
+  });
+
+  // Listen for wallet changes
+  const eth = (window as any).ethereum;
+  if (eth) {
+    eth.on('accountsChanged', (accounts: string[]) => {
+      walletAddress = accounts?.[0] || null;
+      updateWalletChip();
+      loadDecisions();
+    });
+  }
 </script>
