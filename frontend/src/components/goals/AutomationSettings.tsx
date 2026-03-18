@@ -4,9 +4,12 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUSDC } from '../../lib/hooks.js';
+import { parseUnits, formatUnits } from 'viem';
 import { CONTRACTS, CHAIN_INFO } from '../../lib/wallet.js';
 import { VYOROUTER_ABI } from '../../lib/abi.js';
+
+const USDC_DECIMALS = 6;
+const parseUSDC = (amount: number) => parseUnits(amount.toString(), USDC_DECIMALS);
 
 interface Props {
   goalId: string;
