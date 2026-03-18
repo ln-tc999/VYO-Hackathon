@@ -68,21 +68,24 @@ export function DepositForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }
   // Vault underlying info — loaded on mount
   const [underlyingAddress, setUnderlyingAddress] = useState<`0x${string}` | null>(null);
   const [decimals, setDecimals] = useState(6);
+  const [vaultLoading, setVaultLoading] = useState(true);
 
   // Ref to hold pending txs across async boundaries
   const pendingTxsRef = useRef<{ to: string; data: string; value: string }[] | null>(null);
 
   // ── Load vault info on mount ──────────────────────────────
   useEffect(() => {
+    setVaultLoading(true);
     fetch(`${API}/vaults/${vaultAddress}`)
       .then(r => r.json())
       .then(json => {
         if (json.success && json.data) {
-          setUnderlyingAddress(json.data.underlyingAsset as `0x${string}`);
+          setUnderlyingAddress((json.data.underlyingAsset || json.data.underlyingAddress) as `0x${string}`);
           setDecimals(json.data.underlyingDecimals ?? 6);
         }
       })
-      .catch(() => {/* silent */});
+      .catch(() => {/* silent */})
+      .finally(() => setVaultLoading(false));
   }, [vaultAddress]);
 
   // ── On-chain reads ────────────────────────────────────────
@@ -194,6 +197,8 @@ export function DepositForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }
       return;
     }
     if (!amountNum || amountNum <= 0) { setStatusMsg('Enter a valid amount'); return; }
+    if (vaultLoading) { setStatusMsg('Loading vault info...'); return; }
+    if (!underlyingAddress) { setStatusMsg('Vault not found'); return; }
     if (amountNum > balanceHuman) {
       setStatusMsg(`Insufficient balance (${balanceHuman.toFixed(4)} ${underlyingSymbol})`);
       return;
