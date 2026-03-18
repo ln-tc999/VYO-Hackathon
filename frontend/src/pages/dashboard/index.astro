@@ -562,7 +562,7 @@ async function loadVaultsMini() {
     const json = await res.json();
     if (!json.success) return;
     const allVaults = [...json.data].sort((a: any, b: any) => b.apy - a.apy).slice(0, 6);
-    const card = document.getElementById("vault-single")!;
+    const card = document.getElementById("vault-single") as HTMLAnchorElement;
     
     if (!allVaults.length) {
       card.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:24px;">No vaults</div>`;
