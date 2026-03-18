@@ -1,123 +1,192 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
-import SumCard from "../../components/ui/SumCard.astro";
 ---
 
 <MainLayout title="Portfolio" activePage="settings">
-<style>
-  .port-wrap { padding: 28px; width: 100%; box-sizing: border-box; }
+<style is:global>
+  .port-page { padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
 
-  .port-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
-  .port-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
-  .port-subtitle { font-size: 0.8125rem; color: #555; margin-top: 4px; }
-  .port-updated { font-size: 0.75rem; color: #555; }
+  /* ── Header ── */
+  .port-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+  .port-head-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+  .port-head-sub { font-size: var(--font-xs); color: var(--text-muted); margin-top: 3px; }
+  .port-head-time { font-size: var(--font-xs); color: var(--text-muted); }
 
-  .port-body { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+  /* ── Summary strip ── */
+  .port-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 20px;
+  }
+  .port-strip-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .psi-label { font-size: var(--font-xs); color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .psi-val { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+  .psi-val.lime { color: var(--lime); }
+  .psi-sub { font-size: var(--font-xs); color: var(--text-muted); margin-top: 3px; }
+  .psi-sub.lime { color: var(--lime); }
 
-  .alloc-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; }
-  .alloc-inner { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
-  .donut-wrap { position: relative; flex-shrink: 0; width: 140px; height: 140px; }
-  .donut-wrap svg { width: 140px; height: 140px; }
+  /* ── Main grid ── */
+  .port-grid { display: grid; grid-template-columns: 1fr 300px; gap: 14px; margin-bottom: 14px; }
+
+  /* ── Allocation card ── */
+  .alloc-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px;
+  }
+  .card-label { font-size: var(--font-xs); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 18px; }
+
+  .alloc-body { display: flex; align-items: center; gap: 32px; }
+
+  .donut-wrap { position: relative; flex-shrink: 0; width: 130px; height: 130px; }
+  .donut-wrap svg { width: 130px; height: 130px; }
   .donut-center {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    pointer-events: none;
   }
-  .donut-center-val { font-size: 1.125rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-  .donut-center-label { font-size: 0.625rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .donut-center-val { font-size: 1rem; font-weight: 800; letter-spacing: -0.5px; }
+  .donut-center-lbl { font-size: 0.5625rem; color: var(--text-muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
 
-  .alloc-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 160px; }
-  .legend-row { display: flex; align-items: center; gap: 10px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .legend-name { font-size: 0.8125rem; color: #aaa; flex: 1; }
-  .legend-pct { font-size: 0.8125rem; font-weight: 700; color: #fff; }
-  .legend-val { font-size: 0.75rem; color: #555; min-width: 60px; text-align: right; }
+  .alloc-legend { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+  .leg-row { display: flex; align-items: center; gap: 9px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .leg-name { font-size: var(--font-sm); color: var(--text-secondary); flex: 1; }
+  .leg-pct { font-size: var(--font-sm); font-weight: 700; min-width: 36px; text-align: right; }
+  .leg-val { font-size: var(--font-xs); color: var(--text-muted); min-width: 56px; text-align: right; }
 
-  .goals-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
-  .goal-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .goal-row-name { font-size: 0.8125rem; font-weight: 600; }
-  .goal-row-pct { font-size: 0.8125rem; font-weight: 700; color: #c8f135; }
-  .goal-row-bar { height: 5px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
-  .goal-row-fill { height: 100%; border-radius: 999px; background: #c8f135; }
-  .goal-row-meta { display: flex; justify-content: space-between; font-size: 0.6875rem; color: #555; }
+  /* ── Goals card ── */
+  .goals-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .goal-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .goal-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .goal-item:first-child { padding-top: 0; }
+  .gi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .gi-name { font-size: var(--font-sm); font-weight: 600; }
+  .gi-pct { font-size: var(--font-sm); font-weight: 700; color: var(--lime); }
+  .gi-bar { height: 4px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; margin-bottom: 5px; }
+  .gi-fill { height: 100%; border-radius: 999px; background: var(--lime); transition: width 0.5s ease; }
+  .gi-meta { display: flex; justify-content: space-between; font-size: var(--font-xs); color: var(--text-muted); }
 
-  .positions-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 22px 24px; margin-top: 16px; overflow-x: auto; }
-  .pos-table { width: 100%; border-collapse: collapse; min-width: 480px; }
-  .pos-table th { font-size: 0.6875rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 0 12px; text-align: left; }
+  /* ── Positions table ── */
+  .pos-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px; overflow-x: auto;
+  }
+  .pos-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+  .pos-table th {
+    font-size: var(--font-xs); font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 12px 12px 0; text-align: left; white-space: nowrap;
+  }
   .pos-table th:not(:first-child) { text-align: right; }
-  .pos-table td { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.8125rem; }
+  .pos-table td { padding: 13px 12px 13px 0; border-top: 1px solid var(--border); vertical-align: middle; }
   .pos-table td:not(:first-child) { text-align: right; }
-  .pos-vault-name { font-weight: 600; color: #fff; }
-  .pos-vault-sub { font-size: 0.6875rem; color: #555; margin-top: 2px; }
-  .pos-apy { color: #c8f135; font-weight: 700; }
-  .pos-gain { color: #c8f135; font-weight: 600; }
-  .pos-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-  .pos-badge.active { background: rgba(200,241,53,0.12); color: #c8f135; }
+  .pos-table tr:hover td { background: rgba(255,255,255,0.015); }
 
+  .pos-vault { display: flex; align-items: center; gap: 11px; }
+  .pos-icon { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #1a1a1a; flex-shrink: 0; }
+  .pos-name { font-size: var(--font-sm); font-weight: 700; }
+  .pos-chain { font-size: var(--font-xs); color: var(--text-muted); margin-top: 1px; }
+  .pos-apy { color: var(--lime); font-weight: 700; font-size: var(--font-sm); }
+  .pos-val { font-weight: 700; font-size: var(--font-sm); }
+  .pos-yield { color: var(--lime); font-size: var(--font-sm); font-weight: 600; }
+  .pos-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 999px; font-size: 0.625rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .pos-badge.active { background: rgba(200,241,53,0.1); color: var(--lime); border: 1px solid rgba(200,241,53,0.2); }
+
+  /* ── Empty ── */
+  .port-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .port-empty-icon { font-size: 2rem; margin-bottom: 10px; }
+  .port-empty-text { font-size: var(--font-sm); margin-bottom: 14px; }
+
+  /* ── Responsive ── */
   @media (max-width: 900px) {
-    .port-body { grid-template-columns: 1fr; }
+    .port-strip { grid-template-columns: repeat(2, 1fr); }
+    .port-grid { grid-template-columns: 1fr; }
   }
-  @media (max-width: 600px) {
-    .port-wrap { padding: 16px; }
-    .port-title { font-size: 1.375rem; }
-    .alloc-inner { flex-direction: column; align-items: flex-start; }
-    .summary-row { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 400px) {
-    .summary-row { grid-template-columns: 1fr; }
+  @media (max-width: 560px) {
+    .port-page { padding: 16px; }
+    .port-strip { grid-template-columns: 1fr 1fr; }
+    .alloc-body { flex-direction: column; align-items: flex-start; gap: 20px; }
+    .port-head { flex-direction: column; align-items: flex-start; gap: 4px; }
   }
 </style>
 
-<div class="port-wrap">
+<div class="port-page">
 
-  <!-- Header -->
-  <div class="port-header">
+  <div class="port-head">
     <div>
-      <div class="port-title">Portfolio</div>
-      <div class="port-subtitle">Your complete DeFi position overview</div>
+      <div class="port-head-title">Portfolio</div>
+      <div class="port-head-sub">Your complete DeFi position overview</div>
     </div>
-    <div class="port-updated" id="port-updated">Updated just now</div>
+    <div class="port-head-time" id="port-time">—</div>
   </div>
 
-  <!-- Summary row -->
-  <div class="summary-row">
-    <SumCard label="Total Value"      id="p-total"   subId="p-total-sub"   valClass="white" sub="DeFi + TradFi" />
-    <SumCard label="DeFi Balance"     id="p-defi"    subId="p-defi-sub"    valClass="white" subClass="pos" sub="Across vaults" />
-    <SumCard label="Total Yield Earned" id="p-yield" subId="p-yield-sub"   valClass="pos"   subClass="pos" sub="All time" />
-    <SumCard label="Monthly Yield"    id="p-monthly" subId="p-monthly-sub" valClass="pos"   sub="Projected" />
+  <!-- Summary strip -->
+  <div class="port-strip">
+    <div class="port-strip-item">
+      <div class="psi-label">Total Value</div>
+      <div class="psi-val" id="ps-total">$0.00</div>
+      <div class="psi-sub" id="ps-total-sub">—</div>
+    </div>
+    <div class="port-strip-item">
+      <div class="psi-label">DeFi Balance</div>
+      <div class="psi-val" id="ps-defi">$0.00</div>
+      <div class="psi-sub" id="ps-defi-sub">—</div>
+    </div>
+    <div class="port-strip-item">
+      <div class="psi-label">Total Yield</div>
+      <div class="psi-val lime" id="ps-yield">$0.00</div>
+      <div class="psi-sub lime" id="ps-yield-sub">—</div>
+    </div>
+    <div class="port-strip-item">
+      <div class="psi-label">Monthly Yield</div>
+      <div class="psi-val lime" id="ps-monthly">$0.00</div>
+      <div class="psi-sub" id="ps-monthly-sub">Projected</div>
+    </div>
   </div>
 
-  <!-- Body: allocation + goals -->
-  <div class="port-body">
-
-    <!-- Allocation donut -->
+  <!-- Allocation + Goals -->
+  <div class="port-grid">
     <div class="alloc-card">
-      <div class="card-title">Vault Allocation</div>
-      <div class="alloc-inner">
+      <div class="card-label">Vault Allocation</div>
+      <div class="alloc-body">
         <div class="donut-wrap">
-          <svg viewBox="0 0 140 140" id="donut-svg"></svg>
+          <svg viewBox="0 0 130 130" id="donut-svg">
+            <circle cx="65" cy="65" r="50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="16"/>
+          </svg>
           <div class="donut-center">
             <div class="donut-center-val" id="donut-val">$0</div>
-            <div class="donut-center-label">DeFi</div>
+            <div class="donut-center-lbl">DeFi</div>
           </div>
         </div>
-        <div class="alloc-legend" id="alloc-legend"></div>
+        <div class="alloc-legend" id="alloc-legend">
+          <div style="color:var(--text-muted);font-size:var(--font-xs);">Loading...</div>
+        </div>
       </div>
     </div>
 
-    <!-- Goals progress -->
     <div class="goals-card">
-      <div class="card-title">Goals Progress</div>
+      <div class="card-label">Goals</div>
       <div id="goals-list">
-        <div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">Loading...</div>
+        <div style="color:var(--text-muted);font-size:var(--font-xs);padding:12px 0;">Loading...</div>
       </div>
     </div>
-
   </div>
 
-  <!-- Positions table -->
-  <div class="positions-card">
-    <div class="card-title">Active Positions</div>
+  <!-- Positions -->
+  <div class="pos-card">
+    <div class="card-label">Active Positions</div>
     <table class="pos-table">
       <thead>
         <tr>
@@ -128,8 +197,8 @@ import SumCard from "../../components/ui/SumCard.astro";
           <th>Status</th>
         </tr>
       </thead>
-      <tbody id="positions-body">
-        <tr><td colspan="5" style="text-align:center;color:#555;padding:24px 0;">Loading...</td></tr>
+      <tbody id="pos-body">
+        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px 0;">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -139,143 +208,126 @@ import SumCard from "../../components/ui/SumCard.astro";
 
 <script>
 const API = "/api";
-const fmt = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
-const fmtK = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}K` : fmt(n);
+const fmt  = (n: number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2}).format(n);
+const fmtK = (n: number) => n >= 1e6 ? `$${(n/1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n/1e3).toFixed(1)}K` : fmt(n);
 
-const VAULT_COLORS = ["#c8f135","#3b82f6","#a78bfa","#f59e0b","#06b6d4","#ec4899","#22c55e"];
-const VAULT_APYS: Record<string,number> = {
-  yoUSD: 5.2, yoETH: 8.4, yoBTC: 7.1, yoGOLD: 4.8,
-  yoUSDT: 5.0, yoEUR: 4.2, default: 6.0
-};
+const COLORS = ["#c8f135","#3b82f6","#a78bfa","#f59e0b","#06b6d4","#ec4899","#22c55e","#f97316"];
 
-function drawDonut(segments: {pct: number; color: string}[]) {
+function drawDonut(segs: {pct:number;color:string}[]) {
   const svg = document.getElementById("donut-svg")!;
-  const cx = 70, cy = 70, r = 54, stroke = 18;
-  const circumference = 2 * Math.PI * r;
-  let offset = -circumference * 0.25;
-
-  const paths = segments.map(s => {
-    const dash = (s.pct / 100) * circumference;
-    const gap  = circumference - dash;
-    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offset}" style="transition:stroke-dasharray 0.5s ease;"/>`;
-    offset += dash;
+  const cx=65, cy=65, r=50, sw=16;
+  const circ = 2*Math.PI*r;
+  let off = -circ*0.25;
+  const circles = segs.map(s => {
+    const dash = (s.pct/100)*circ;
+    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${-off}" style="transition:stroke-dasharray 0.5s ease"/>`;
+    off += dash;
     return el;
   });
-
-  svg.innerHTML = `
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${stroke}"/>
-    ${paths.join("")}
-  `;
+  svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${sw}"/>${circles.join("")}`;
 }
 
-async function loadPortfolio() {
+async function load() {
   try {
-    const [dashRes, goalsRes] = await Promise.all([
+    const [dashRes, goalsRes, vaultsRes] = await Promise.all([
       fetch(`${API}/dashboard`),
       fetch(`${API}/goals`),
+      fetch(`${API}/vaults`),
     ]);
-    const dash = await dashRes.json();
-    const goalsData = await goalsRes.json();
+    const [dash, goalsData, vaultsData] = await Promise.all([dashRes.json(), goalsRes.json(), vaultsRes.json()]);
 
     if (!dash.success) return;
     const d = dash.data;
 
-    document.getElementById("p-total")!.textContent = fmt(d.totalNetWorth);
-    document.getElementById("p-total-sub")!.textContent = `DeFi ${fmtK(d.defiBalance)} + TradFi ${fmtK(d.tradFiBalance)}`;
-    document.getElementById("p-defi")!.textContent = fmt(d.defiBalance);
-    document.getElementById("p-defi-sub")!.textContent = `${d.activeVaults} active vault${d.activeVaults !== 1 ? "s" : ""}`;
-    document.getElementById("p-yield")!.textContent = fmt(d.totalYieldEarned);
-    document.getElementById("p-yield-sub")!.textContent = `+${((d.totalYieldEarned / (d.defiBalance || 1)) * 100).toFixed(2)}% return`;
-    document.getElementById("p-monthly")!.textContent = fmt(d.yieldMonth);
-    document.getElementById("p-monthly-sub")!.textContent = `~${fmt(d.yieldMonth * 12)} / year`;
-    document.getElementById("donut-val")!.textContent = fmtK(d.defiBalance);
+    // Strip
+    document.getElementById("ps-total")!.textContent    = fmt(d.totalNetWorth);
+    document.getElementById("ps-total-sub")!.textContent = `DeFi ${fmtK(d.defiBalance)} + TradFi ${fmtK(d.tradFiBalance)}`;
+    document.getElementById("ps-defi")!.textContent     = fmt(d.defiBalance);
+    document.getElementById("ps-defi-sub")!.textContent  = `${d.activeVaults} active vault${d.activeVaults!==1?"s":""}`;
+    document.getElementById("ps-yield")!.textContent    = fmt(d.totalYieldEarned);
+    document.getElementById("ps-yield-sub")!.textContent = `+${((d.totalYieldEarned/(d.defiBalance||1))*100).toFixed(2)}% return`;
+    document.getElementById("ps-monthly")!.textContent  = fmt(d.yieldMonth);
+    document.getElementById("ps-monthly-sub")!.textContent = `~${fmt(d.yieldMonth*12)} / year`;
+    document.getElementById("donut-val")!.textContent   = fmtK(d.defiBalance);
+    document.getElementById("port-time")!.textContent   = `Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}`;
 
+    // Build vault map from goals
     const goals = goalsData.success ? goalsData.data : [];
-    const vaultMap: Record<string, {name: string; balance: number; color: string; idx: number}> = {};
-    let colorIdx = 0;
-
+    const vaultMap: Record<string,{name:string;balance:number;color:string}> = {};
+    let ci = 0;
     goals.forEach((g: any) => {
       g.vaultAllocations.forEach((a: any) => {
-        if (!vaultMap[a.vaultId]) {
-          vaultMap[a.vaultId] = { name: a.vaultName, balance: 0, color: VAULT_COLORS[colorIdx++ % VAULT_COLORS.length], idx: colorIdx };
-        }
+        if (!vaultMap[a.vaultId]) vaultMap[a.vaultId] = {name:a.vaultName, balance:0, color:COLORS[ci++%COLORS.length]};
         vaultMap[a.vaultId].balance += a.currentBalance;
       });
     });
 
-    const vaults = Object.entries(vaultMap)
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => b.balance - a.balance);
+    const vaults = Object.entries(vaultMap).map(([id,v])=>({id,...v})).sort((a,b)=>b.balance-a.balance);
+    const total  = vaults.reduce((s,v)=>s+v.balance,0)||1;
 
-    const total = vaults.reduce((s, v) => s + v.balance, 0) || 1;
+    // Donut
+    drawDonut(vaults.map(v=>({pct:(v.balance/total)*100, color:v.color})));
 
-    drawDonut(vaults.map(v => ({ pct: (v.balance / total) * 100, color: v.color })));
+    // Legend
+    document.getElementById("alloc-legend")!.innerHTML = vaults.length
+      ? vaults.map(v=>`
+        <div class="leg-row">
+          <div class="leg-dot" style="background:${v.color}"></div>
+          <span class="leg-name">${v.name}</span>
+          <span class="leg-pct">${((v.balance/total)*100).toFixed(0)}%</span>
+          <span class="leg-val">${fmtK(v.balance)}</span>
+        </div>`).join("")
+      : `<div style="color:var(--text-muted);font-size:var(--font-xs);">No allocations yet</div>`;
 
-    document.getElementById("alloc-legend")!.innerHTML = vaults.map(v => `
-      <div class="legend-row">
-        <div class="legend-dot" style="background:${v.color};"></div>
-        <span class="legend-name">${v.name}</span>
-        <span class="legend-pct">${((v.balance / total) * 100).toFixed(0)}%</span>
-        <span class="legend-val">${fmtK(v.balance)}</span>
-      </div>`).join("");
-
+    // Goals
     const goalsList = document.getElementById("goals-list")!;
-    if (d.goalSummaries.length === 0) {
-      goalsList.innerHTML = `<div style="color:#555;font-size:0.8125rem;text-align:center;padding:16px;">No goals yet</div>`;
-    } else {
-      goalsList.innerHTML = d.goalSummaries.map((g: any) => {
-        const deadline = new Date(g.deadline).toLocaleDateString("en-US",{month:"short",year:"numeric"});
-        return `
-          <div class="goal-row">
-            <div class="goal-row-top">
-              <span class="goal-row-name">${g.name}</span>
-              <span class="goal-row-pct">${g.progressPercent}%</span>
-            </div>
-            <div class="goal-row-bar">
-              <div class="goal-row-fill" style="width:${g.progressPercent}%;"></div>
-            </div>
-            <div class="goal-row-meta">
-              <span>${fmt(g.currentAmount)} of ${fmt(g.targetAmount)}</span>
-              <span>Due ${deadline}</span>
-            </div>
+    goalsList.innerHTML = d.goalSummaries.length
+      ? d.goalSummaries.map((g: any) => {
+          const dl = new Date(g.deadline).toLocaleDateString("en-US",{month:"short",year:"numeric"});
+          return `
+          <div class="goal-item">
+            <div class="gi-top"><span class="gi-name">${g.name}</span><span class="gi-pct">${g.progressPercent}%</span></div>
+            <div class="gi-bar"><div class="gi-fill" style="width:${g.progressPercent}%"></div></div>
+            <div class="gi-meta"><span>${fmt(g.currentAmount)} / ${fmt(g.targetAmount)}</span><span>Due ${dl}</span></div>
           </div>`;
-      }).join("");
-    }
+        }).join("")
+      : `<div style="color:var(--text-muted);font-size:var(--font-xs);padding:12px 0;">No goals yet</div>`;
 
-    const tbody = document.getElementById("positions-body")!;
-    if (vaults.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#555;padding:24px 0;">No positions found</td></tr>`;
-    } else {
-      tbody.innerHTML = vaults.map(v => {
-        const apy = VAULT_APYS[v.id] ?? VAULT_APYS.default;
-        const yieldEarned = v.balance * 0.038;
-        return `
+    // Positions table — use real vault data if available
+    const vaultInfoMap: Record<string,any> = {};
+    if (vaultsData.success) vaultsData.data.forEach((v: any) => { vaultInfoMap[v.id] = v; });
+
+    const tbody = document.getElementById("pos-body")!;
+    tbody.innerHTML = vaults.length
+      ? vaults.map(v => {
+          const info = vaultInfoMap[v.id] || {};
+          const apy  = info.apy ?? 5.0;
+          const logo = info.logoUrl ?? "/assets/yoUSD.png";
+          const chain = info.chain ?? "Base";
+          const yieldEarned = v.balance * (apy/100) * (30/365);
+          return `
           <tr>
             <td>
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:32px;height:32px;border-radius:50%;background:${v.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  <div style="width:10px;height:10px;border-radius:50%;background:${v.color};"></div>
-                </div>
+              <div class="pos-vault">
+                <img class="pos-icon" src="${logo}" alt="${v.name}" onerror="this.src='/assets/yoUSD.png'">
                 <div>
-                  <div class="pos-vault-name">${v.name}</div>
-                  <div class="pos-vault-sub">${v.id.toUpperCase()}</div>
+                  <div class="pos-name">${v.name}</div>
+                  <div class="pos-chain">${chain}</div>
                 </div>
               </div>
             </td>
-            <td style="font-weight:700;">${fmt(v.balance)}</td>
-            <td class="pos-apy">${apy.toFixed(1)}%</td>
-            <td class="pos-gain">+${fmt(yieldEarned)}</td>
-            <td><span class="pos-badge active">Active</span></td>
+            <td class="pos-val">${fmt(v.balance)}</td>
+            <td class="pos-apy">${apy.toFixed(2)}%</td>
+            <td class="pos-yield">+${fmt(yieldEarned)}</td>
+            <td><span class="pos-badge active">● Active</span></td>
           </tr>`;
-      }).join("");
-    }
+        }).join("")
+      : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:28px 0;">No positions found — <a href="/dashboard/vaults" style="color:var(--lime)">browse vaults</a></td></tr>`;
 
-    document.getElementById("port-updated")!.textContent = `Updated ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}`;
-
-  } catch(err) {
-    console.error("Portfolio load failed:", err);
+  } catch(e) {
+    console.error("Portfolio load failed:", e);
   }
 }
 
-loadPortfolio();
+load();
 </script>
