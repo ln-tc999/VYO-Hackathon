@@ -1,6 +1,7 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
 import DepositIsland from "../../components/vault/DepositIsland.jsx";
+import RedeemIsland from "../../components/vault/RedeemIsland.jsx";
 ---
 
 <MainLayout title="Vaults" activePage="vaults">
@@ -145,11 +146,84 @@ import DepositIsland from "../../components/vault/DepositIsland.jsx";
   .deposit-msg.ok  { color: var(--lime); }
   .deposit-msg.err { color: var(--red); }
 
+  /* Redeem form */
+  .redeem-form {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .redeem-form-title { font-size: 0.9375rem; font-weight: 700; margin-bottom: 14px; }
+
+  .redeem-input-wrap { position: relative; margin-bottom: 10px; }
+  .redeem-input {
+    width: 100%; padding: 11px 14px; padding-right: 60px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 9px; font-family: var(--font); font-size: 1rem;
+    font-weight: 700; color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .redeem-input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(251,191,36,0.2); }
+  .redeem-input::placeholder { color: var(--text-muted); font-weight: 400; }
+  .redeem-input-sym {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: var(--font-xs); font-weight: 700; color: var(--text-muted);
+  }
+
+  .redeem-preview {
+    background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.15);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
+    font-size: var(--font-sm); display: none;
+  }
+  .redeem-preview.show { display: block; }
+  .redeem-preview-row { display: flex; justify-content: space-between; align-items: center; }
+  .redeem-preview-label { color: var(--text-muted); }
+  .redeem-preview-val   { font-weight: 700; color: var(--amber); }
+
+  .redeem-submit {
+    width: 100%; padding: 12px; border-radius: 9px;
+    background: var(--amber); color: #000;
+    font-size: var(--font-base); font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .redeem-submit:hover { background: #f59e0b; box-shadow: 0 0 20px rgba(251,191,36,0.3); }
+  .redeem-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .redeem-msg { font-size: var(--font-xs); margin-top: 8px; text-align: center; min-height: 16px; }
+  .redeem-msg.ok  { color: var(--lime); }
+  .redeem-msg.err { color: var(--red); }
+
+  .vault-action-btns {
+    display: flex; gap: 8px;
+  }
+  .vault-deposit-btn {
+    padding: 8px 16px; border-radius: 8px;
+    background: var(--lime); color: #000;
+    font-size: var(--font-sm); font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s, box-shadow 0.15s; white-space: nowrap;
+    flex: 1;
+  }
+  .vault-deposit-btn:hover { background: #d4f53c; box-shadow: 0 0 16px rgba(200,241,53,0.3); }
+  .vault-redeem-btn {
+    padding: 8px 16px; border-radius: 8px;
+    background: var(--amber); color: #000;
+    font-size: var(--font-sm); font-weight: 700;
+    border: none; cursor: pointer; font-family: var(--font);
+    transition: background 0.15s, box-shadow 0.15s; white-space: nowrap;
+    flex: 1;
+  }
+  .vault-redeem-btn:hover { background: #f59e0b; box-shadow: 0 0 16px rgba(251,191,36,0.3); }
+
+  /* Two-column form layout */
+  .vault-expand-forms {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+
   /* Responsive */
   @media (max-width: 860px) {
     .vault-row-head { grid-template-columns: 36px 1fr 80px 90px 90px; }
     .vault-col-risk, .vault-deposit-col { display: none; }
-    .vault-expand-inner { grid-template-columns: 1fr; }
+    .vault-expand-forms { grid-template-columns: 1fr !important; }
   }
   @media (max-width: 600px) {
     .vaults-page { padding: 16px; }
@@ -190,6 +264,11 @@ import DepositIsland from "../../components/vault/DepositIsland.jsx";
   <!-- Single shared deposit island — moves into open vault's mount div via vault-open event -->
   <div id="deposit-island-root" style="display:none;">
     <DepositIsland client:only="react" />
+  </div>
+
+  <!-- Single shared redeem island -->
+  <div id="redeem-island-root" style="display:none;">
+    <RedeemIsland client:only="react" />
   </div>
 
 </div>
@@ -256,24 +335,27 @@ import DepositIsland from "../../components/vault/DepositIsland.jsx";
             <div style="font-size:var(--font-xs);font-weight:700;color:${riskColor};margin-top:2px;">${v.riskScore}/10</div>
           </div>
           <div class="vault-deposit-col">
-            <button class="vault-deposit-btn" onclick="event.stopPropagation();openDeposit('${v.id}')">Deposit</button>
+            <div class="vault-action-btns">
+              <button class="vault-deposit-btn" onclick="event.stopPropagation();openDeposit('${v.id}')">Deposit</button>
+              <button class="vault-redeem-btn" onclick="event.stopPropagation();openRedeem('${v.id}')">Withdraw</button>
+            </div>
           </div>
         </div>
 
         <div class="vault-expand">
-          <div class="vault-expand-inner">
-            <div>
-              <div class="vault-detail-grid">
-                <div class="vdg-item"><div class="vdg-label">APY (7d)</div><div class="vdg-val" style="color:var(--lime)">${v.apy.toFixed(2)}%</div></div>
-                <div class="vdg-item"><div class="vdg-label">TVL</div><div class="vdg-val">${fmtCompact(v.tvl)}</div></div>
-                <div class="vdg-item"><div class="vdg-label">Lockup</div><div class="vdg-val">${v.lockupPeriod || 'None'}</div></div>
-                <div class="vdg-item"><div class="vdg-label">Underlying</div><div class="vdg-val">${v.underlyingSymbol}</div></div>
-                <div class="vdg-item"><div class="vdg-label">Chain</div><div class="vdg-val">${v.chain}</div></div>
-                <div class="vdg-item"><div class="vdg-label">Risk Score</div><div class="vdg-val" style="color:${riskColor}">${v.riskScore}/10</div></div>
-              </div>
-              <a href="${v.auditUrl}" target="_blank" class="vault-audit-link">View Security Audit →</a>
-            </div>
+          <div class="vault-detail-grid" style="margin-bottom: 16px;">
+            <div class="vdg-item"><div class="vdg-label">APY (7d)</div><div class="vdg-val" style="color:var(--lime)">${v.apy.toFixed(2)}%</div></div>
+            <div class="vdg-item"><div class="vdg-label">TVL</div><div class="vdg-val">${fmtCompact(v.tvl)}</div></div>
+            <div class="vdg-item"><div class="vdg-label">Lockup</div><div class="vdg-val">${v.lockupPeriod || 'None'}</div></div>
+            <div class="vdg-item"><div class="vdg-label">Underlying</div><div class="vdg-val">${v.underlyingSymbol}</div></div>
+            <div class="vdg-item"><div class="vdg-label">Chain</div><div class="vdg-val">${v.chain}</div></div>
+            <div class="vdg-item"><div class="vdg-label">Risk Score</div><div class="vdg-val" style="color:${riskColor}">${v.riskScore}/10</div></div>
+          </div>
+          <a href="${v.auditUrl}" target="_blank" class="vault-audit-link" style="display:block;margin-bottom:16px;">View Security Audit →</a>
+          
+          <div class="vault-expand-forms">
             <div id="deposit-mount-${v.id}"></div>
+            <div id="redeem-mount-${v.id}"></div>
           </div>
         </div>
       </div>`;
@@ -333,6 +415,15 @@ import DepositIsland from "../../components/vault/DepositIsland.jsx";
       detail: allVaults.find(v => v.id === id) ?? null
     }));
     setTimeout(() => document.getElementById(`deposit-mount-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  };
+
+  (window as any).openRedeem = (id: string) => {
+    openVaultId = id;
+    applyFiltersAndSort();
+    window.dispatchEvent(new CustomEvent('vault-redeem', {
+      detail: allVaults.find(v => v.id === id) ?? null
+    }));
+    setTimeout(() => document.getElementById(`redeem-mount-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
   };
 
   async function loadVaults() {
