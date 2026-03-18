@@ -1,5 +1,6 @@
 ---
 import MainLayout from "../../layouts/MainLayout.astro";
+import AutomationIsland from "../../components/goals/AutomationIsland.jsx";
 ---
 
 <MainLayout title="Goals" activePage="goals">
@@ -60,6 +61,11 @@ import MainLayout from "../../layouts/MainLayout.astro";
         <button class="btn btn-primary" id="confirm-deposit-btn" onclick="confirmDeposit()">Confirm Deposit</button>
       </div>
     </div>
+  </div>
+
+  <!-- Automation Island -->
+  <div id="automation-island-root" style="display:none;">
+    <AutomationIsland client:only="react" />
   </div>
 
 </div>
@@ -126,8 +132,12 @@ import MainLayout from "../../layouts/MainLayout.astro";
               <button class="btn btn-primary" style="flex:1;" onclick="openDepositModal('${g.id}','${g.name.replace(/'/g,"\\'")}')">
                 Deposit
               </button>
+              <button class="btn btn-ghost" onclick="openAutomationSettings('${g.id}','${g.name.replace(/'/g,"\\'")}')" style="padding:var(--s2) var(--s3);">
+                ⚙
+              </button>
               <button class="btn btn-ghost" onclick="deleteGoal('${g.id}')" style="padding:var(--s2) var(--s3);">✕</button>
             </div>
+            <div id="automation-mount-${g.id}"></div>
           </div>`;
       }).join("");
     } catch (err) {
@@ -206,12 +216,19 @@ import MainLayout from "../../layouts/MainLayout.astro";
     loadGoals();
   }
 
+  function openAutomationSettings(goalId: string, goalName: string) {
+    window.dispatchEvent(new CustomEvent('goal-automation', {
+      detail: { goal: { id: goalId, name: goalName } }
+    }));
+  }
+
   // expose to inline onclick
   (window as any).createGoal = createGoal;
   (window as any).openDepositModal = openDepositModal;
   (window as any).closeDepositModal = closeDepositModal;
   (window as any).confirmDeposit = confirmDeposit;
   (window as any).deleteGoal = deleteGoal;
+  (window as any).openAutomationSettings = openAutomationSettings;
 
   loadGoals();
 </script>
