@@ -224,7 +224,7 @@ export function DepositForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [vaultAddress as `0x${string}`, amountWei],
-        });
+        } as any);
         setApproveTxHash(hash);
         setStep('approve_wait');
         setStatusMsg('Waiting for approval confirmation...');
