@@ -79,6 +79,39 @@ aiRouter.post('/decisions/:id/reject', (req: AuthenticatedRequest, res) => {
   res.json({ success: true, data: decision });
 });
 
+// ── Automation config (in-memory store, keyed by goalId) ──
+const automationStore = new Map<string, object>();
+
+// GET /api/ai/automation/:goalId — get config
+aiRouter.get('/automation/:goalId', (req: AuthenticatedRequest, res) => {
+  const config = automationStore.get(req.params.goalId);
+  if (config) {
+    res.json({ success: true, data: config });
+  } else {
+    // Return sensible defaults
+    res.json({
+      success: true,
+      data: {
+        enabled: false,
+        autoCompound: true,
+        autoRebalance: false,
+        compoundIntervalDays: 7,
+        rebalanceThresholdBps: 200,
+        minCompoundAmount: 10,
+      },
+    });
+  }
+});
+
+// POST /api/ai/automation/:goalId — save config
+aiRouter.post('/automation/:goalId', (req: AuthenticatedRequest, res) => {
+  const { goalId } = req.params;
+  const config = req.body;
+  automationStore.set(goalId, config);
+  console.log(`[AUTOMATION] Config saved for goal ${goalId}:`, config);
+  res.json({ success: true, data: config });
+});
+
 // POST /api/ai/chat — Chat with Vio Agent
 aiRouter.post('/chat', async (req: AuthenticatedRequest, res) => {
   try {
