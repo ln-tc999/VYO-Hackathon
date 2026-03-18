@@ -1,9 +1,11 @@
-// ============================================================
-// PortfolioPositions — shows user's holdings across all vaults
-// ============================================================
+// PortfolioPositions — user vault holdings dengan WagmiProvider sendiri
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { WagmiProvider, useAccount } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { wagmiConfig } from '../../lib/wallet.js';
+
+const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 60_000 } } });
 
 const API = '/api';
 
@@ -20,154 +22,90 @@ interface Position {
   apy: number;
 }
 
-export function PortfolioPositions() {
+const fmt = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n);
+
+function Inner() {
   const { address, isConnected } = useAccount();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isConnected || !address) {
-      setLoading(false);
-      setPositions([]);
-      return;
-    }
-
-    loadPositions();
+    if (!isConnected || !address) { setLoading(false); return; }
+    fetch(`${API}/vaults/positions/${address}`)
+      .then(r => r.json())
+      .then(j => { if (j.success) setPositions(j.data || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [address, isConnected]);
 
-  const loadPositions = async () => {
-    if (!address) return;
-    
-    try {
-      setLoading(true);
-      const res = await fetch(`${API}/vaults/positions/${address}`);
-      const json = await res.json();
-      
-      if (json.success) {
-        setPositions(json.data || []);
-      } else {
-        setError(json.error || 'Failed to load positions');
-      }
-    } catch (err) {
-      console.error('[PORTFOLIO] Load error:', err);
-      setError('Failed to load positions');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fmt = (n: number) => new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-
-  const fmtNum = (n: number) => new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(n);
-
-  // Update summary elements
+  // Update parent DOM stats
   useEffect(() => {
-    const totalValue = positions.reduce((sum, p) => sum + p.assets, 0);
-    const totalYield = positions.reduce((sum, p) => sum + p.yieldEarned, 0);
-    const weightedApy = totalValue > 0 
-      ? positions.reduce((sum, p) => sum + (p.apy * p.assets), 0) / totalValue 
-      : 0;
-    const bestApy = positions.length > 0 
-      ? Math.max(...positions.map(p => p.apy)) 
-      : 0;
+    const totalValue   = positions.reduce((s, p) => s + p.assets, 0);
+    const totalYield   = positions.reduce((s, p) => s + p.yieldEarned, 0);
+    const weightedApy  = totalValue > 0 ? positions.reduce((s, p) => s + p.apy * p.assets, 0) / totalValue : 0;
+    const bestApy      = positions.length ? Math.max(...positions.map(p => p.apy)) : 0;
 
-    // Header
-    const totalEl = document.getElementById('port-total');
-    const yieldEl = document.getElementById('port-yield');
-    if (totalEl) totalEl.textContent = fmt(totalValue);
-    if (yieldEl) yieldEl.textContent = `+${fmt(totalYield)}`;
-
-    // Stats row
-    const statYield = document.getElementById('stat-yield');
-    const statApy = document.getElementById('stat-apy');
-    const statVaults = document.getElementById('stat-vaults');
-    const statBest = document.getElementById('stat-best');
-    if (statYield) statYield.textContent = totalYield.toFixed(2);
-    if (statApy) statApy.textContent = weightedApy.toFixed(2);
-    if (statVaults) statVaults.textContent = String(positions.length);
-    if (statBest) statBest.textContent = bestApy.toFixed(2);
-
-    // Chart empty state
-    const chartEmpty = document.getElementById('chart-empty');
-    const yieldLine = document.getElementById('yield-line');
-    const yieldPath = document.getElementById('yield-path');
-    if (positions.length === 0) {
-      if (chartEmpty) chartEmpty.style.display = 'block';
-      if (yieldLine) yieldLine.style.display = 'none';
-      if (yieldPath) yieldPath.style.display = 'none';
-    } else {
-      if (chartEmpty) chartEmpty.style.display = 'none';
-      if (yieldLine) yieldLine.style.display = 'block';
-      if (yieldPath) yieldPath.style.display = 'block';
-    }
+    const set = (id: string, val: string) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('port-total',      fmt(totalValue));
+    set('port-yield',      `+${fmt(totalYield)}`);
+    set('stat-yield',      totalYield.toFixed(2));
+    set('stat-apy',        weightedApy.toFixed(2));
+    set('stat-vaults',     String(positions.length));
+    set('stat-best',       bestApy.toFixed(2));
+    set('position-count',  `${positions.length} vault${positions.length !== 1 ? 's' : ''}`);
   }, [positions]);
 
-  if (!isConnected) {
-    return (
-      <div className="empty-positions">
-        <div className="empty-positions-icon">🔗</div>
-        <div className="empty-positions-text">Connect your wallet to view positions</div>
-      </div>
-    );
-  }
+  if (!isConnected) return (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#555' }}>
+      <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>🔗</div>
+      <div style={{ fontSize: '0.8125rem' }}>Connect wallet to view positions</div>
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="empty-positions">
-        <div className="empty-positions-icon">⏳</div>
-        <div className="empty-positions-text">Loading your positions...</div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#555', fontSize: '0.8125rem' }}>
+      Loading positions...
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="empty-positions">
-        <div className="empty-positions-icon">⚠️</div>
-        <div className="empty-positions-text">{error}</div>
-      </div>
-    );
-  }
-
-  if (positions.length === 0) {
-    return (
-      <div className="empty-positions">
-        <div className="empty-positions-icon">📊</div>
-        <div className="empty-positions-text">No vault positions yet</div>
-        <a href="/dashboard/vaults" className="btn btn-primary" style={{ display: 'inline-block', marginTop: 12, textDecoration: 'none' }}>
-          Browse Vaults
-        </a>
-      </div>
-    );
-  }
+  if (positions.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#555' }}>
+      <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>📊</div>
+      <div style={{ fontSize: '0.8125rem', marginBottom: 12 }}>No vault positions yet</div>
+      <a href="/dashboard/vaults" style={{ color: '#c8f135', fontSize: '0.8125rem', fontWeight: 600 }}>
+        Browse Vaults →
+      </a>
+    </div>
+  );
 
   return (
     <>
-      {positions.map((pos) => (
-        <div className="position-item" key={pos.vaultId}>
-          <img 
-            className="position-logo" 
-            src={pos.logoUrl} 
-            alt={pos.symbol}
-            onError={(e) => { (e.target as HTMLImageElement).src = '/assets/yoUSD.png'; }}
+      {positions.map(p => (
+        <div key={p.vaultId} className="position-row">
+          <img
+            className="position-logo"
+            src={p.logoUrl} alt={p.symbol}
+            onError={e => { (e.target as HTMLImageElement).src = '/assets/yoUSD.png'; }}
           />
           <div className="position-info">
-            <span className="position-symbol">{pos.symbol}</span>
-            <span className="position-chain">{pos.chain}</span>
+            <span className="position-symbol">{p.symbol}</span>
+            <span className="position-chain">{p.chain}</span>
           </div>
-          <div className="position-apy">{pos.apy.toFixed(2)}%</div>
-          <div className="position-value">{fmt(pos.assets)}</div>
+          <div className="position-apy">{p.apy.toFixed(2)}%</div>
+          <div className="position-value">{fmt(p.assets)}</div>
         </div>
       ))}
     </>
+  );
+}
+
+export function PortfolioPositions() {
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={qc}>
+        <Inner />
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
