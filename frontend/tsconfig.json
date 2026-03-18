@@ -4,7 +4,9 @@
         "jsx": "react-jsx",
         "strict": false,
         "noImplicitAny": false,
-        "strictNullChecks": false
+        "strictNullChecks": false,
+        "allowImportingTsExtensions": true,
+        "moduleResolution": "bundler"
     },
     "include": [
         "src/**/*",
