@@ -110,8 +110,8 @@ export function useUSDCAllowance(ownerAddress?: string) {
 // Write Hooks
 // ============================================================
 
-export function useCreateGoal() {
-  const write = useWriteContract();
+export function useCreateGoal(): any {
+  const write: any = useWriteContract();
   
   const createGoal = (params: {
     name: string;
@@ -144,8 +144,8 @@ export function useCreateGoal() {
   };
 }
 
-export function useBatchDeposit() {
-  const write = useWriteContract();
+export function useBatchDeposit(): any {
+  const write: any = useWriteContract();
   
   const deposit = (params: {
     goalId: string;
@@ -174,8 +174,8 @@ export function useBatchDeposit() {
   };
 }
 
-export function useBatchRedeem() {
-  const write = useWriteContract();
+export function useBatchRedeem(): any {
+  const write: any = useWriteContract();
   
   const redeem = (params: {
     goalId: string;
@@ -202,8 +202,8 @@ export function useBatchRedeem() {
   };
 }
 
-export function useEmergencyExit() {
-  const write = useWriteContract();
+export function useEmergencyExit(): any {
+  const write: any = useWriteContract();
   
   const emergencyExit = (goalId: string) => {
     write.writeContract({
@@ -222,8 +222,8 @@ export function useEmergencyExit() {
   };
 }
 
-export function useSetAutomationConfig() {
-  const write = useWriteContract();
+export function useSetAutomationConfig(): any {
+  const write: any = useWriteContract();
   
   const setConfig = (params: {
     goalId: string;
@@ -256,8 +256,8 @@ export function useSetAutomationConfig() {
   };
 }
 
-export function useApproveUSDC() {
-  const write = useWriteContract();
+export function useApproveUSDC(): any {
+  const write: any = useWriteContract();
   
   const approve = (amount: number) => {
     write.writeContract({
@@ -276,8 +276,8 @@ export function useApproveUSDC() {
   };
 }
 
-export function useCompoundYield() {
-  const write = useWriteContract();
+export function useCompoundYield(): any {
+  const write: any = useWriteContract();
   
   const compound = (goalId: string) => {
     write.writeContract({
