@@ -1,6 +1,6 @@
 // ============================================================
-// RedeemIsland — listens for 'vault-redeem' events and renders
-// the redeem form for whichever vault is currently open.
+// RedeemIsland — listens for 'vault-redeem' events, renders
+// the withdraw form for whichever vault is open.
 // ============================================================
 
 import { useState, useEffect } from 'react';
@@ -42,8 +42,22 @@ function RedeemController() {
       }
     };
 
+    // Also hide when a different vault opens for deposit
+    const depositHandler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        const rootEl = document.getElementById('redeem-island-root');
+        if (rootEl) rootEl.style.display = 'none';
+        setVault(null);
+      }
+    };
+
     window.addEventListener('vault-redeem', handler);
-    return () => window.removeEventListener('vault-redeem', handler);
+    window.addEventListener('vault-open', depositHandler);
+    return () => {
+      window.removeEventListener('vault-redeem', handler);
+      window.removeEventListener('vault-open', depositHandler);
+    };
   }, []);
 
   if (!vault) return null;
