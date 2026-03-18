@@ -3,6 +3,7 @@ import MainLayout from "../../layouts/MainLayout.astro";
 import StatBox from "../../components/ui/StatBox.astro";
 import SectionHeader from "../../components/ui/SectionHeader.astro";
 import RiskBar from "../../components/ui/RiskBar.astro";
+import OnboardingBanner from "../../components/ui/OnboardingBanner.tsx";
 ---
 
 <MainLayout title="Dashboard" activePage="dashboard">
@@ -194,6 +195,11 @@ import RiskBar from "../../components/ui/RiskBar.astro";
 </style>
 
 <div class="dash-wrap">
+
+  <!-- Onboarding banner (only shown to new/disconnected users) -->
+  <div style="grid-column:1/-1;padding:20px 24px 0;">
+    <OnboardingBanner client:only="react" />
+  </div>
 
   <!-- ═══ LEFT ═══ -->
   <div class="dash-left">
