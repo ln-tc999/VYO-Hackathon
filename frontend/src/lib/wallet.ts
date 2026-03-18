@@ -10,7 +10,7 @@ export const wagmiConfig = createConfig({
   connectors: [injected()],
   transports: {
     [chain.id]: http(),
-  },
+  } as any,
 });
 
 export const currentChainId = chainId;
