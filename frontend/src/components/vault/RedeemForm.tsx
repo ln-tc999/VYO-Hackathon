@@ -1,5 +1,5 @@
 // ============================================================
-// RedeemForm — YO vault withdraw/redeem with burn shares flow
+// RedeemForm — YO vault withdraw (redeem shares → underlying)
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
@@ -17,27 +17,18 @@ const API = '/api';
 
 const ERC20_ABI = [
   {
-    name: 'balanceOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-  },
-] as const;
-
-const VAULT_ABI = [
-  {
-    name: 'balanceOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
+    name: 'allowance', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
     outputs: [{ type: 'uint256' }],
   },
   {
-    name: 'convertToAssets',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'shares', type: 'uint256' }],
+    name: 'approve', type: 'function', stateMutability: 'nonpayable',
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    name: 'balanceOf', type: 'function', stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ type: 'uint256' }],
   },
 ] as const;
@@ -49,67 +40,72 @@ interface Props {
   apy: number;
 }
 
-type Step = 'idle' | 'previewing' | 'redeeming' | 'redeem_wait' | 'done' | 'error';
+type Step = 'idle' | 'previewing' | 'approving' | 'approve_wait' | 'redeeming' | 'redeem_wait' | 'done' | 'error';
 
 export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }: Props) {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
 
-  const [shares, setShares]         = useState('');
-  const [preview, setPreview]       = useState<{ assets: number } | null>(null);
-  const [step, setStep]             = useState<Step>('idle');
-  const [statusMsg, setStatusMsg]   = useState('');
-  const [txHash, setTxHash]         = useState<`0x${string}` | undefined>();
+  const [shares, setShares]       = useState('');
+  const [preview, setPreview]     = useState<{ assets: number } | null>(null);
+  const [step, setStep]           = useState<Step>('idle');
+  const [statusMsg, setStatusMsg] = useState('');
+  const [txHash, setTxHash]       = useState<`0x${string}` | undefined>();
+  const [approveTxHash, setApproveTxHash] = useState<`0x${string}` | undefined>();
 
-  const [decimals, setDecimals] = useState(6);
+  const [decimals, setDecimals]   = useState(6);
+  const [vaultLoading, setVaultLoading] = useState(true);
   const pendingTxsRef = useRef<{ to: string; data: string; value: string }[] | null>(null);
 
-  // ── Load vault info on mount ──────────────────────────────
+  // Load vault info
   useEffect(() => {
+    setVaultLoading(true);
     fetch(`${API}/vaults/${vaultAddress}`)
       .then(r => r.json())
       .then(json => {
-        if (json.success && json.data) {
-          setDecimals(json.data.underlyingDecimals ?? 6);
-        }
+        if (json.success && json.data) setDecimals(json.data.underlyingDecimals ?? 6);
       })
-      .catch(() => {/* silent */});
+      .catch(() => {})
+      .finally(() => setVaultLoading(false));
   }, [vaultAddress]);
 
-  // ── On-chain reads ────────────────────────────────────────
-  // User's shares in the vault (yearn position)
-  const { data: vaultSharesRaw } = useReadContract({
+  // Share token balance (vault shares are ERC20 too)
+  const { data: shareBalanceRaw } = useReadContract({
     address: vaultAddress as `0x${string}`,
-    abi: VAULT_ABI,
+    abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: { enabled: !!address },
   });
 
-  // Convert shares to assets for display
-  const { data: assetValueRaw } = useReadContract({
+  // Allowance for vault to burn shares (some vaults require approve)
+  const { data: allowanceRaw, refetch: refetchAllowance } = useReadContract({
     address: vaultAddress as `0x${string}`,
-    abi: VAULT_ABI,
-    functionName: 'convertToAssets',
-    args: vaultSharesRaw ? [vaultSharesRaw] : undefined,
-    query: { enabled: !!vaultSharesRaw && vaultSharesRaw > 0n },
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address ? [address, vaultAddress as `0x${string}`] : undefined,
+    query: { enabled: !!address },
   });
 
-  // ── Write hooks ─────────────────────────────────────────
-  const { writeContractAsync } = useWriteContract();
-  const { sendTransactionAsync } = useSendTransaction();
+  const { writeContractAsync }    = useWriteContract();
+  const { sendTransactionAsync }  = useSendTransaction();
+
+  const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+    hash: approveTxHash,
+    query: { enabled: !!approveTxHash },
+  });
 
   const { isSuccess: redeemSuccess, isError: redeemError } = useWaitForTransactionReceipt({
     hash: txHash,
     query: { enabled: !!txHash },
   });
 
-  // ── Derived values ────────────────────────────────────────
-  const sharesNum      = parseFloat(shares) || 0;
-  const sharesHuman    = vaultSharesRaw ? parseFloat(formatUnits(vaultSharesRaw as bigint, decimals)) : 0;
-  const assetsHuman    = assetValueRaw ? parseFloat(formatUnits(assetValueRaw as bigint, decimals)) : 0;
+  const sharesNum       = parseFloat(shares) || 0;
+  const shareBalance    = shareBalanceRaw ? parseFloat(formatUnits(shareBalanceRaw as bigint, decimals)) : 0;
+  const allowanceHuman  = allowanceRaw ? parseFloat(formatUnits(allowanceRaw as bigint, decimals)) : 0;
+  const needsApprove    = sharesNum > 0 && allowanceHuman < sharesNum;
 
-  // ── Preview (debounced 600ms) ─────────────────────────────
+  // Preview (debounced)
   useEffect(() => {
     if (!sharesNum || sharesNum <= 0) { setPreview(null); return; }
     const t = setTimeout(async () => {
@@ -121,16 +117,22 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
           body: JSON.stringify({ vaultAddress, shares: sharesNum }),
         });
         const json = await res.json();
-        if (json.success) {
-          setPreview({ assets: json.data.redeem.expectedAssets });
-        }
+        if (json.success) setPreview({ assets: json.data.redeem.expectedAssets });
       } catch { /* silent */ }
       setStep('idle');
     }, 600);
     return () => clearTimeout(t);
   }, [sharesNum, vaultAddress]);
 
-  // ── After redeem confirmed ───────────────────────────────
+  // After approve → send redeem
+  useEffect(() => {
+    if (!approveSuccess || step !== 'approve_wait') return;
+    const txs = pendingTxsRef.current;
+    if (!txs) return;
+    refetchAllowance();
+    sendRedeem(txs);
+  }, [approveSuccess]);
+
   useEffect(() => {
     if (redeemSuccess && step === 'redeem_wait') {
       setStep('done');
@@ -145,7 +147,6 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
     }
   }, [redeemError]);
 
-  // ── Send redeem tx ───────────────────────────────────────
   const sendRedeem = async (txs: { to: string; data: string; value: string }[]) => {
     try {
       setStep('redeeming');
@@ -165,23 +166,18 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
     }
   };
 
-  // ── Main submit ───────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!isConnected || !address) {
-      connect({ connector: connectors[0] });
-      return;
-    }
+    if (!isConnected || !address) { connect({ connector: connectors[0] }); return; }
     if (!sharesNum || sharesNum <= 0) { setStatusMsg('Enter a valid amount'); return; }
-    if (sharesNum > sharesHuman) {
-      setStatusMsg(`Insufficient balance (${sharesHuman.toFixed(4)} ${vaultSymbol})`);
+    if (vaultLoading) { setStatusMsg('Loading vault info...'); return; }
+    if (sharesNum > shareBalance) {
+      setStatusMsg(`Insufficient shares (${shareBalance.toFixed(4)} ${vaultSymbol})`);
       return;
     }
 
-    setStatusMsg('');
-    setStep('idle');
+    setStatusMsg(''); setStep('idle');
 
     try {
-      // Build tx calldata from backend
       const res  = await fetch(`${API}/transactions/build-redeem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,29 +188,40 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
 
       const txs = json.data.transactions as { to: string; data: string; value: string }[];
       pendingTxsRef.current = txs;
-      await sendRedeem(txs);
+
+      if (needsApprove) {
+        setStep('approving');
+        setStatusMsg('Approving share burn...');
+        const sharesWei = parseUnits(shares, decimals);
+        const hash = await writeContractAsync({
+          address: vaultAddress as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [vaultAddress as `0x${string}`, sharesWei],
+        } as any);
+        setApproveTxHash(hash);
+        setStep('approve_wait');
+        setStatusMsg('Waiting for approval...');
+      } else {
+        await sendRedeem(txs);
+      }
     } catch (err: any) {
       setStep('error');
       setStatusMsg(err?.shortMessage || err?.message || 'Something went wrong');
     }
   };
 
-  // ── Max button ───────────────────────────────────────────
-  const handleSetMax = () => {
-    if (sharesHuman > 0) {
-      setShares(sharesHuman.toFixed(6));
-    }
-  };
-
-  // ── UI ────────────────────────────────────────────────────
-  const isLoading = ['previewing', 'redeeming', 'redeem_wait'].includes(step);
+  const isLoading = ['previewing','approving','approve_wait','redeeming','redeem_wait'].includes(step);
 
   const btnLabel = () => {
-    if (!isConnected)              return 'Connect Wallet';
-    if (step === 'previewing')     return 'Previewing...';
+    if (!isConnected)             return 'Connect Wallet';
+    if (step === 'previewing')    return 'Previewing...';
+    if (step === 'approving')     return 'Approving...';
+    if (step === 'approve_wait')  return 'Waiting for approval...';
     if (step === 'redeeming')     return 'Sending...';
     if (step === 'redeem_wait')   return 'Confirming...';
-    if (step === 'done')           return '✓ Done';
+    if (step === 'done')          return '✓ Done';
+    if (needsApprove)             return 'Approve & Withdraw';
     return 'Withdraw';
   };
 
@@ -226,15 +233,13 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
     <div className="redeem-form">
       <div className="redeem-form-title">Withdraw from {vaultSymbol}</div>
 
-      {isConnected && vaultSharesRaw !== undefined && (
+      {isConnected && shareBalanceRaw !== undefined && (
         <div style={{ fontSize: '0.6875rem', color: '#555', marginBottom: 8, textAlign: 'right' }}>
-          Your shares: {sharesHuman.toFixed(4)} {vaultSymbol}
-          <span style={{ margin: '0 6px', color: '#666' }}>|</span>
-          Value: {assetsHuman.toFixed(4)} {underlyingSymbol}
-          {sharesHuman > 0 && (
+          Shares: {shareBalance.toFixed(4)} {vaultSymbol}
+          {shareBalance > 0 && (
             <button
-              onClick={handleSetMax}
-              style={{ marginLeft: 6, color: 'var(--lime)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.6875rem', fontWeight: 700 }}
+              onClick={() => setShares(shareBalance.toFixed(6))}
+              style={{ marginLeft: 6, color: 'var(--amber)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.6875rem', fontWeight: 700 }}
             >
               MAX
             </button>
@@ -245,10 +250,7 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
       <div className="redeem-input-wrap">
         <input
           className="redeem-input"
-          type="number"
-          min="0"
-          step="any"
-          placeholder="0.00"
+          type="number" min="0" step="any" placeholder="0.00"
           value={shares}
           onChange={e => { setShares(e.target.value); setStep('idle'); setStatusMsg(''); }}
           disabled={isLoading || step === 'done'}
@@ -263,9 +265,14 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
             <span className="redeem-preview-val">{preview.assets.toFixed(4)} {underlyingSymbol}</span>
           </div>
           <div className="redeem-preview-row" style={{ marginTop: 4 }}>
-            <span className="redeem-preview-label">Burn</span>
-            <span className="redeem-preview-val">{sharesNum.toFixed(4)} {vaultSymbol}</span>
+            <span className="redeem-preview-label">Current APY</span>
+            <span className="redeem-preview-val">{apy.toFixed(2)}%</span>
           </div>
+          {needsApprove && (
+            <div style={{ marginTop: 6, fontSize: '0.6875rem', color: 'var(--amber)' }}>
+              ⚠ Approval required before withdrawal
+            </div>
+          )}
         </div>
       )}
 
@@ -281,12 +288,7 @@ export function RedeemForm({ vaultAddress, vaultSymbol, underlyingSymbol, apy }:
 
       {txHash && (
         <div style={{ marginTop: 8, textAlign: 'center', fontSize: '0.6875rem' }}>
-          <a
-            href={`https://basescan.org/tx/${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--lime)' }}
-          >
+          <a href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--amber)' }}>
             View on Basescan →
           </a>
         </div>
